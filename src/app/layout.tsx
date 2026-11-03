@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { TelemetryProvider } from "@/contexts/TelemetryContext";
@@ -7,9 +7,18 @@ import { Toaster } from "react-hot-toast";
 
 const inter = Inter({ subsets: ["latin"] });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#1e293b",
+};
+
 export const metadata: Metadata = {
-  title: "Textile Telemetry Dashboard",
-  description: "Monitor and manage textile looms in real-time.",
+  title: "WeaveSync SCADA | Ali Haider Industries",
+  description: "Real-time IIoT SCADA Digital Twin for 36 Picanol Air-Jet Weaving Looms in SITE Area, Karachi",
 };
 
 export default function RootLayout({
@@ -18,13 +27,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" className="h-full">
+      <body className={`${inter.className} h-full antialiased bg-[#e8ebf0] text-slate-900 overflow-x-hidden selection:bg-blue-500/20`}>
         <TelemetryProvider>
-          <div className="min-h-screen bg-[#e8ebf0] text-[#1e293b] font-sans flex flex-col">
+          <div className="min-h-screen flex flex-col bg-[#e8ebf0]">
             <Header />
-            <main className="flex-1 overflow-hidden">
-              <Toaster position="top-right" reverseOrder={false} />
+            <main className="flex-1 flex flex-col overflow-hidden">
+              <Toaster 
+                position="top-right" 
+                reverseOrder={false}
+                toastOptions={{
+                  duration: 3500,
+                  style: {
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    borderRadius: '10px',
+                    background: '#1e293b',
+                    color: '#f8fafc',
+                  }
+                }} 
+              />
               {children}
             </main>
           </div>

@@ -1,30 +1,90 @@
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
-// In a real scenario, you'd import the real protocol readers here
-import { startDeviceDrivers } from './mock-devices';
+import { 
+  startDeviceDrivers, 
+  mockLoomDevices, 
+  generateMinuteCounter, 
+  generateUuidV7,
+  OFFICIAL_FLEET_36
+} from './mock-devices';
 
 dotenv.config();
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.warn('⚠️ SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing. Running in dry-run mode (console only).');
+export const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+
+export type SourceKind = 'LDL' | 'BICOM_ETH' | 'BICOM_OPCUA' | 'BICOM_SERIAL' | 'SENSOR_KIT' | 'GATEWAY' | 'SIM';
+export type StopCategory = 'WARP' | 'FILLING' | 'SELVEDGE' | 'OTHER';
+export type LoomStateKind = 'RUNNING' | 'STOPPED' | 'OFFLINE' | 'UNKNOWN';
+export type LoomFamily = 'OmniPlus-i' | 'OmniPlus Summum' | 'OmniPlus 800';
+
+export interface LoomStateData {
+  state: LoomStateKind;
+  stopCategory: StopCategory | null;
+  stopId: string | null;
+  since: string;
+  rpm: number;
 }
 
-const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+export interface LoomCountersData {
+  windowStart: string;
+  windowEnd: string;
+  picksDelta: number;
+  picksTotal: number;
+  runMs: number;
+  stopMs: number;
+  offlineMs: number;
+  stops: {
+    WARP: number;
+    FILLING: number;
+    SELVEDGE: number;
+    OTHER: number;
+  };
+  rpmAvgRunning: number;
+}
 
-// Unified state representation matching Supabase schema
-export interface LoomState {
-  loom_id?: string;
-  loom_number: number;
-  status: 'RUNNING' | 'STOPPED_WARP' | 'STOPPED_FILLING' | 'STOPPED_MANUAL';
+export interface CanonicalEnvelope<T = unknown> {
+  schema: string;
+  msgId: string;
+  seq: number;
+  machineId: string | null;
+  gatewayId: string;
+  source: SourceKind;
+  deviceId: string | null;
+  ts: string;
+  tsQuality: 'SYNCED' | 'ESTIMATED';
+  replayed: boolean;
+  data: T;
+}
+
+export interface LoomDeviceState {
+  machineId: string;
+  loomNumber: number;
+  family: LoomFamily;
+  sources: SourceKind[];
+  setRpm: number;
+  weftDensityPicksPerCm: number;
+  ipAddress: string;
+  state: LoomStateKind;
+  stopCategory: StopCategory | null;
+  stopId: string | null;
+  since: string;
   rpm: number;
-  total_picks: number;
-  total_meters: number;
-  efficiency: number;
-  warp_stops_daily: number;
-  filling_stops_daily: number;
+  totalPicks: number;
+  minutePicksAccumulator: number;
+  minuteRunMs: number;
+  minuteStopMs: number;
+  minuteStops: {
+    WARP: number;
+    FILLING: number;
+    SELVEDGE: number;
+    OTHER: number;
+  };
+  warpTensionKn: number;
+  airPressureBar: number;
+  lastSeq: number;
 }
 
 export interface AmbientState {
@@ -36,18 +96,17 @@ export interface AmbientState {
 export interface SolarState {
   current_generation_kw: number;
   daily_yield_kwh: number;
+  factory_load_kw: number;
 }
 
-// In-memory cache to accumulate data before pushing
 const telemetryCache = {
-  looms: new Map<number, LoomState>(),
+  looms: new Map<string, LoomDeviceState>(),
   ambient: null as AmbientState | null,
   solar: null as SolarState | null,
-  loomIdMap: new Map<number, string>() // maps loom_number to UUID
 };
 
-export function updateLoomCache(data: LoomState) {
-  telemetryCache.looms.set(data.loom_number, data);
+export function updateLoomCache(data: LoomDeviceState) {
+  telemetryCache.looms.set(data.machineId, data);
 }
 
 export function updateAmbientCache(data: AmbientState) {
@@ -58,91 +117,112 @@ export function updateSolarCache(data: SolarState) {
   telemetryCache.solar = data;
 }
 
-async function resolveLoomIds() {
-  if (!supabase) return;
-  const { data, error } = await supabase.from('looms').select('id, loom_number');
-  if (error) {
-    console.error('Failed to fetch looms:', error);
-    return;
-  }
-  data.forEach(l => {
-    telemetryCache.loomIdMap.set(l.loom_number, l.id);
-  });
-}
-
 async function dispatchLoop() {
   let tick = 0;
   setInterval(async () => {
     tick++;
+    const now = new Date().toISOString();
+
     if (!supabase) {
-        // Dry run printing
-        console.log(`[DRY RUN] ${new Date().toISOString()} - Aggregated ${telemetryCache.looms.size} looms.`);
-        return;
+      if (tick % 5 === 0) {
+        console.log(`[DRY RUN] ${now} - Aggregated ${telemetryCache.looms.size} canonical machines.`);
+      }
+      return;
     }
 
     try {
-      // 1. Dispatch Looms
-      const loomUpdates = Array.from(telemetryCache.looms.values()).map(l => {
-        const id = telemetryCache.loomIdMap.get(l.loom_number);
-        return {
-          loom_id: id,
-          status: l.status,
-          rpm: l.rpm,
-          total_picks: l.total_picks,
-          total_meters: l.total_meters,
-          efficiency: l.efficiency,
-          warp_stops_daily: l.warp_stops_daily,
-          filling_stops_daily: l.filling_stops_daily
-        };
-      }).filter(l => l.loom_id); // Only send if we have a resolved UUID
+      // 1. Dispatch State Updates every 1 second
+      const stateUpdates = Array.from(telemetryCache.looms.values()).map(dev => ({
+        machine_id: dev.machineId,
+        state: dev.state,
+        stop_category: dev.stopCategory,
+        stop_id: dev.stopId,
+        since: dev.since,
+        rpm: dev.rpm,
+        warp_tension_kn: dev.warpTensionKn,
+        air_pressure_bar: dev.airPressureBar,
+        last_ts: now,
+        replayed: false,
+        updated_at: now
+      }));
 
-      if (loomUpdates.length > 0) {
-        const { error } = await supabase.from('loom_live_telemetry').upsert(loomUpdates, { onConflict: 'loom_id' });
-        if (error) console.error('Error updating looms:', error.message);
+      if (stateUpdates.length > 0) {
+        await supabase.from('loom_live_state').upsert(stateUpdates, { onConflict: 'machine_id' });
       }
 
-      // 2. Dispatch Ambient
-      if (telemetryCache.ambient) {
-        const { error } = await supabase.from('factory_ambient_telemetry').insert(telemetryCache.ambient);
-        if (error) console.error('Error updating ambient:', error.message);
-      }
-
-      // 3. Dispatch Solar
-      if (telemetryCache.solar) {
-        const { error } = await supabase.from('solar_live_telemetry').insert(telemetryCache.solar);
-        if (error) console.error('Error updating solar:', error.message);
-      }
-
-      // 4. Dispatch to History (Every 60 ticks / 60 seconds)
-      if (tick % 60 === 0 && loomUpdates.length > 0) {
-        const historyData = loomUpdates.map(l => ({
-          loom_id: l.loom_id,
-          total_picks: l.total_picks,
-          total_meters: l.total_meters
+      // 2. Dispatch 1-Minute Counters every 60 seconds
+      if (tick % 60 === 0) {
+        const counterEnvelopes = Array.from(mockLoomDevices.values()).map(generateMinuteCounter);
+        const counterRows = counterEnvelopes.map(e => ({
+          machine_id: e.machineId,
+          window_start: e.data.windowStart,
+          window_end: e.data.windowEnd,
+          picks_delta: e.data.picksDelta,
+          picks_total: e.data.picksTotal,
+          run_ms: e.data.runMs,
+          stop_ms: e.data.stopMs,
+          offline_ms: e.data.offlineMs,
+          stops_warp: e.data.stops.WARP,
+          stops_filling: e.data.stops.FILLING,
+          stops_selvedge: e.data.stops.SELVEDGE,
+          stops_other: e.data.stops.OTHER,
+          rpm_avg_running: e.data.rpmAvgRunning,
+          source: e.source,
+          created_at: now
         }));
-        const { error } = await supabase.from('loom_telemetry_history').insert(historyData);
-        if (error) console.error('Error updating history:', error.message);
-        else console.log(`[HISTORY] Logged snapshot for shift metrics.`);
+
+        await supabase.from('loom_minute_counters').upsert(counterRows, { onConflict: 'machine_id, window_start' });
+        console.log(`[COUNTERS] Rolled up 1-minute counters for ${counterRows.length} looms.`);
       }
 
-      console.log(`[DISPATCH] Successfully dispatched telemetry at ${new Date().toISOString()}`);
+      // 3. Dispatch Ambient and Solar
+      if (telemetryCache.ambient) {
+        await supabase.from('factory_ambient_telemetry').insert({
+          main_air_pressure_bar: telemetryCache.ambient.main_air_pressure_bar,
+          hall_temperature_celsius: telemetryCache.ambient.hall_temperature_celsius,
+          hall_humidity_percentage: telemetryCache.ambient.hall_humidity_percentage,
+          recorded_at: now
+        });
+      }
 
-    } catch (err) {
-      console.error('Fatal dispatch error:', err);
+      if (telemetryCache.solar) {
+        await supabase.from('solar_live_telemetry').insert({
+          current_generation_kw: telemetryCache.solar.current_generation_kw,
+          daily_yield_kwh: telemetryCache.solar.daily_yield_kwh,
+          recorded_at: now
+        });
+      }
+
+      // 4. Gateway Heartbeat (Liveness > 90s)
+      if (tick % 15 === 0) {
+        await supabase.from('gateway_health').upsert({
+          gateway_id: 'AHI-GW-01',
+          last_seen_at: now,
+          status: 'ONLINE',
+          connected_devices: 36,
+          metadata: {
+            uptimeSeconds: tick,
+            activeLooms: Array.from(telemetryCache.looms.values()).filter(l => l.state === 'RUNNING').length
+          }
+        }, { onConflict: 'gateway_id' });
+      }
+
+      if (tick % 10 === 0) {
+        console.log(`[DISPATCH] Successfully dispatched live factory state at ${now}`);
+      }
+
+    } catch (err: any) {
+      console.error('Fatal dispatch error in edge gateway:', err.message);
     }
-  }, 1000); // 1000ms throttling payload delivery
+  }, 1000);
 }
 
 async function main() {
-  console.log('🚀 Starting Edge Data Aggregator...');
-  await resolveLoomIds();
-  
-  // Start the simulated/mock readers
-  // Start the newly separated OPC UA and Modbus driver loops
+  console.log('🚀 Starting WeaveSync SCADA Edge Gateway (Ali Haider Industries - Data Contract v1)...');
   startDeviceDrivers();
-
-  // Start the dispatcher
   dispatchLoop();
 }
 
-main().catch(console.error);
+if (require.main === module) {
+  main().catch(console.error);
+}

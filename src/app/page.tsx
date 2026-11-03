@@ -5,7 +5,7 @@ import { GlobalDashboard } from "@/views/GlobalDashboard";
 import { LoomDashboard } from "@/views/LoomDashboard";
 
 export default function Home() {
-  const { selectedLoom } = useTelemetry();
+  const { selectedMachineId } = useTelemetry();
 
-  return selectedLoom === 'GLOBAL' ? <GlobalDashboard /> : <LoomDashboard />;
+  return selectedMachineId === 'GLOBAL' ? <GlobalDashboard /> : <LoomDashboard />;
 }

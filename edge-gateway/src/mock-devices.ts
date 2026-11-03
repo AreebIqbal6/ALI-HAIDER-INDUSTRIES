@@ -1,213 +1,326 @@
-import { updateLoomCache, updateAmbientCache, updateSolarCache, LoomState } from './index';
-// import { OPCUAClient, AttributeIds } from 'node-opcua'; // Scaffolded for future
-import ModbusRTU from 'modbus-serial'; 
-import { ServerTCP } from 'modbus-serial';
-// Helper to generate a baseline mock state for a loom
-const createMockState = (loom_number: number): LoomState => ({
-  loom_number,
-  status: 'RUNNING',
-  rpm: 600 + Math.floor(Math.random() * 200),
-  total_picks: Math.floor(Math.random() * 1000000),
-  total_meters: Math.floor(Math.random() * 10000),
-  efficiency: 85 + (Math.random() * 10),
-  warp_stops_daily: Math.floor(Math.random() * 5),
-  filling_stops_daily: Math.floor(Math.random() * 5)
+import { 
+  updateLoomCache, 
+  updateAmbientCache, 
+  updateSolarCache, 
+  LoomDeviceState, 
+  CanonicalEnvelope,
+  LoomFamily, 
+  SourceKind, 
+  StopCategory,
+  LoomStateKind
+} from './index';
+
+export function generateUuidV7(): string {
+  const now = Date.now();
+  const timeHex = now.toString(16).padStart(12, '0');
+  const randHex = () => Math.floor(Math.random() * 0x10000).toString(16).padStart(4, '0');
+  return `${timeHex.slice(0, 8)}-${timeHex.slice(8, 12)}-7${randHex().slice(1)}-8${randHex().slice(1)}-${randHex()}${randHex()}${randHex()}`;
+}
+
+export interface RealLoomDefinition {
+  loomNumber: number;
+  machineId: string;
+  family: LoomFamily;
+  yearRecorded: string;
+  sources: SourceKind[];
+  setRpm: number;
+  weftDensity: number;
+  ipAddress: string;
+}
+
+// 36 Official Machines registered at Ali Haider Industries (Section 10.1)
+export const OFFICIAL_FLEET_36: RealLoomDefinition[] = [
+  // 2x OmniPlus Summum (11/2012 & 05/2015)
+  { loomNumber: 1, machineId: 'PIC-332235', family: 'OmniPlus Summum', yearRecorded: '11/2012', sources: ['LDL', 'BICOM_ETH'], setRpm: 850, weftDensity: 27.2, ipAddress: '192.168.10.101' },
+  { loomNumber: 2, machineId: 'PIC-315816', family: 'OmniPlus Summum', yearRecorded: '05/2015', sources: ['LDL', 'BICOM_ETH'], setRpm: 850, weftDensity: 27.2, ipAddress: '192.168.10.102' },
+
+  // 25x OmniPlus-i (07–08/2021): PIC-427708 to PIC-427732
+  { loomNumber: 3,  machineId: 'PIC-427708', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.103' },
+  { loomNumber: 4,  machineId: 'PIC-427709', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.104' },
+  { loomNumber: 5,  machineId: 'PIC-427710', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.105' },
+  { loomNumber: 6,  machineId: 'PIC-427711', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.106' },
+  { loomNumber: 7,  machineId: 'PIC-427712', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.107' },
+  { loomNumber: 8,  machineId: 'PIC-427713', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.108' },
+  { loomNumber: 9,  machineId: 'PIC-427714', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.109' },
+  { loomNumber: 10, machineId: 'PIC-427715', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.110' },
+  { loomNumber: 11, machineId: 'PIC-427716', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.111' },
+  { loomNumber: 12, machineId: 'PIC-427717', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.112' },
+  { loomNumber: 13, machineId: 'PIC-427718', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.113' },
+  { loomNumber: 14, machineId: 'PIC-427719', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.114' },
+  { loomNumber: 15, machineId: 'PIC-427720', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.115' },
+  { loomNumber: 16, machineId: 'PIC-427721', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.116' },
+  { loomNumber: 17, machineId: 'PIC-427722', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.117' },
+  { loomNumber: 18, machineId: 'PIC-427723', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.118' },
+  { loomNumber: 19, machineId: 'PIC-427724', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.119' },
+  { loomNumber: 20, machineId: 'PIC-427725', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.120' },
+  { loomNumber: 21, machineId: 'PIC-427726', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.121' },
+  { loomNumber: 22, machineId: 'PIC-427727', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.122' },
+  { loomNumber: 23, machineId: 'PIC-427728', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.123' },
+  { loomNumber: 24, machineId: 'PIC-427729', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.124' },
+  { loomNumber: 25, machineId: 'PIC-427730', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.125' },
+  { loomNumber: 26, machineId: 'PIC-427731', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.126' },
+  { loomNumber: 27, machineId: 'PIC-427732', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.127' },
+
+  // 9x OmniPlus 800 (09/2005–02/2006)
+  { loomNumber: 28, machineId: 'PIC-279327', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.128' },
+  { loomNumber: 29, machineId: 'PIC-278863', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.129' },
+  { loomNumber: 30, machineId: 'PIC-279323', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.130' },
+  { loomNumber: 31, machineId: 'PIC-279105', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.131' },
+  { loomNumber: 32, machineId: 'PIC-279099', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.132' },
+  { loomNumber: 33, machineId: 'PIC-281560', family: 'OmniPlus 800', yearRecorded: '02/2006', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.133' },
+  { loomNumber: 34, machineId: 'PIC-281554', family: 'OmniPlus 800', yearRecorded: '02/2006', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.134' },
+  { loomNumber: 35, machineId: 'PIC-281553', family: 'OmniPlus 800', yearRecorded: '02/2006', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.135' },
+  { loomNumber: 36, machineId: 'PIC-281481', family: 'OmniPlus 800', yearRecorded: '02/2006', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.136' },
+];
+
+export const mockLoomDevices: Map<string, LoomDeviceState> = new Map();
+
+// Helper to construct baseline device state
+export function createLoomDeviceState(def: RealLoomDefinition): LoomDeviceState {
+  const isRunning = Math.random() > 0.12;
+  const state: LoomStateKind = isRunning ? 'RUNNING' : 'STOPPED';
+  const stopCategory: StopCategory | null = isRunning ? null : (['WARP', 'FILLING', 'SELVEDGE', 'OTHER'][Math.floor(Math.random() * 4)] as StopCategory);
+  const stopId = isRunning ? null : generateUuidV7();
+  const currentRpm = isRunning ? (def.setRpm + Math.floor(Math.random() * 9) - 4) : 0;
+
+  return {
+    machineId: def.machineId,
+    loomNumber: def.loomNumber,
+    family: def.family,
+    sources: def.sources,
+    setRpm: def.setRpm,
+    weftDensityPicksPerCm: def.weftDensity,
+    ipAddress: def.ipAddress,
+    state,
+    stopCategory,
+    stopId,
+    since: new Date(Date.now() - (isRunning ? 1800000 : 180000)).toISOString(),
+    rpm: currentRpm,
+    totalPicks: 1540000 + (def.loomNumber * 21500),
+    minutePicksAccumulator: 0,
+    minuteRunMs: 0,
+    minuteStopMs: 0,
+    minuteStops: { WARP: 0, FILLING: 0, SELVEDGE: 0, OTHER: 0 },
+    warpTensionKn: Number((1.90 + (Math.random() * 0.2 - 0.1)).toFixed(2)),
+    airPressureBar: Number((7.35 + (Math.random() * 0.2 - 0.1)).toFixed(2)),
+    lastSeq: 1000 + def.loomNumber
+  };
+}
+
+// Initialize all 36 looms
+OFFICIAL_FLEET_36.forEach(def => {
+  mockLoomDevices.set(def.machineId, createLoomDeviceState(def));
 });
 
-// Cache holding the current mocked states to persist values between ticks
-const mockLoomStates: Map<number, LoomState> = new Map();
-for (let i = 1; i <= 36; i++) {
-  mockLoomStates.set(i, createMockState(i));
+// Support dynamic provisioning of new looms (e.g. Looms 37, 38, 39)
+export function addMockLoom(def: RealLoomDefinition): LoomDeviceState {
+  const newState = createLoomDeviceState(def);
+  mockLoomDevices.set(def.machineId, newState);
+  updateLoomCache(newState);
+  return newState;
 }
 
-// Function to mutate a loom state (simulating real machine changes)
-function mutateLoomState(loom: LoomState) {
-  if (Math.random() < 0.002) { // Random chance to stop
-    if (loom.status === 'RUNNING') {
-      const stops = ['STOPPED_WARP', 'STOPPED_FILLING', 'STOPPED_MANUAL'] as const;
-      loom.status = stops[Math.floor(Math.random() * stops.length)];
-      loom.rpm = 0;
-      if (loom.status === 'STOPPED_WARP') loom.warp_stops_daily++;
-      if (loom.status === 'STOPPED_FILLING') loom.filling_stops_daily++;
-    } else {
-      loom.status = 'RUNNING';
+// Mutate state every second
+function mutateDevice(dev: LoomDeviceState): CanonicalEnvelope<any>[] {
+  const envelopes: CanonicalEnvelope<any>[] = [];
+  const now = new Date().toISOString();
+  dev.lastSeq++;
+
+  // 1. Stochastic Stop / Start Events
+  if (dev.state === 'RUNNING') {
+    dev.minuteRunMs += 1000;
+    const picksThisSec = Math.floor(dev.rpm / 60);
+    dev.minutePicksAccumulator += picksThisSec;
+    dev.totalPicks += picksThisSec;
+
+    // Small jitter in speed around setRpm
+    const jitter = Math.floor(Math.random() * 5) - 2;
+    dev.rpm = Math.max(0, dev.setRpm + jitter);
+
+    // 0.3% chance to encounter stoppage
+    if (Math.random() < 0.003) {
+      dev.state = 'STOPPED';
+      const categories: StopCategory[] = ['WARP', 'WARP', 'FILLING', 'SELVEDGE', 'OTHER'];
+      dev.stopCategory = categories[Math.floor(Math.random() * categories.length)] || 'WARP';
+      dev.stopId = generateUuidV7();
+      dev.since = now;
+      dev.rpm = 0;
+      dev.minuteStops[dev.stopCategory]++;
+
+      // Emit STOP_STARTED event envelope
+      envelopes.push({
+        schema: 'ahi.loom.event/1.0',
+        msgId: generateUuidV7(),
+        seq: dev.lastSeq,
+        machineId: dev.machineId,
+        gatewayId: 'AHI-GW-01',
+        source: dev.sources[0] || 'LDL',
+        deviceId: `LDL-${dev.machineId.replace('PIC-', '')}`,
+        ts: now,
+        tsQuality: 'SYNCED',
+        replayed: false,
+        data: {
+          eventType: 'STOP_STARTED',
+          stopId: dev.stopId,
+          stopCategory: dev.stopCategory,
+          rpmAtStop: dev.setRpm,
+          picksAtStop: dev.totalPicks
+        }
+      });
+
+      // Emit State change envelope
+      envelopes.push({
+        schema: 'ahi.loom.state/1.0',
+        msgId: generateUuidV7(),
+        seq: ++dev.lastSeq,
+        machineId: dev.machineId,
+        gatewayId: 'AHI-GW-01',
+        source: dev.sources[0] || 'LDL',
+        deviceId: `LDL-${dev.machineId.replace('PIC-', '')}`,
+        ts: now,
+        tsQuality: 'SYNCED',
+        replayed: false,
+        data: {
+          state: 'STOPPED',
+          stopCategory: dev.stopCategory,
+          stopId: dev.stopId,
+          since: dev.since,
+          rpm: 0
+        }
+      });
+    }
+  } else if (dev.state === 'STOPPED') {
+    dev.minuteStopMs += 1000;
+    dev.rpm = 0;
+
+    // 2% chance to be fixed by operator / weaver and resume
+    if (Math.random() < 0.02) {
+      const stopDurationMs = Date.now() - new Date(dev.since).getTime();
+      const stoppedCategory = dev.stopCategory || 'WARP';
+      const closedStopId = dev.stopId || generateUuidV7();
+
+      dev.state = 'RUNNING';
+      dev.stopCategory = null;
+      dev.stopId = null;
+      dev.since = now;
+      dev.rpm = dev.setRpm;
+
+      // Emit STOP_ENDED event envelope
+      envelopes.push({
+        schema: 'ahi.loom.event/1.0',
+        msgId: generateUuidV7(),
+        seq: dev.lastSeq,
+        machineId: dev.machineId,
+        gatewayId: 'AHI-GW-01',
+        source: dev.sources[0] || 'LDL',
+        deviceId: `LDL-${dev.machineId.replace('PIC-', '')}`,
+        ts: now,
+        tsQuality: 'SYNCED',
+        replayed: false,
+        data: {
+          eventType: 'STOP_ENDED',
+          stopId: closedStopId,
+          stopCategory: stoppedCategory,
+          durationMs: stopDurationMs,
+          failedStartAttempts: 0,
+          resolvedBy: 'Floor Weaver'
+        }
+      });
+
+      // Emit State change envelope
+      envelopes.push({
+        schema: 'ahi.loom.state/1.0',
+        msgId: generateUuidV7(),
+        seq: ++dev.lastSeq,
+        machineId: dev.machineId,
+        gatewayId: 'AHI-GW-01',
+        source: dev.sources[0] || 'LDL',
+        deviceId: `LDL-${dev.machineId.replace('PIC-', '')}`,
+        ts: now,
+        tsQuality: 'SYNCED',
+        replayed: false,
+        data: {
+          state: 'RUNNING',
+          stopCategory: null,
+          stopId: null,
+          since: dev.since,
+          rpm: dev.rpm
+        }
+      });
     }
   }
 
-  if (loom.status === 'RUNNING') {
-    loom.rpm = 600 + Math.floor(Math.random() * 200);
-    loom.total_picks += Math.floor(loom.rpm / 60);
-    loom.total_meters += (loom.rpm / 60) * 0.001;
-    loom.efficiency = loom.efficiency + (0.1 * (95 - loom.efficiency) * Math.random());
-  } else {
-    loom.efficiency = Math.max(0, loom.efficiency - 0.05);
-  }
-  return loom;
+  return envelopes;
 }
 
-/**
- * 🚀 LOOP 1: HIGH-SPEED OPC UA POLLING (Modern Looms 1-18)
- * Simulates low-latency Ethernet communication with Picanol BlueBox machines.
- */
-async function startModernLoomsLoop() {
-  console.log('[OPC UA] Starting high-speed polling for Looms 1-18 (BlueBox)...');
-  
-  // Scaffolded instantiation for future integration:
-  // const opcClient = OPCUAClient.create({ 
-  //    endpointMustExist: false,
-  //    securityMode: MessageSecurityMode.SignAndEncrypt, // Ready for Picanol's cert requirements
-  //    securityPolicy: SecurityPolicy.Basic256Sha256
-  // });
-  // await opcClient.connect("opc.tcp://factory-lan:4840");
-  
-  // CRITICAL: We MUST reuse a single persistent session across reads to prevent deadlock.
-  // const opcSession = await opcClient.createSession();
+// Roll up 1-minute counters
+export function generateMinuteCounter(dev: LoomDeviceState): CanonicalEnvelope<any> {
+  const windowEnd = new Date().toISOString();
+  const windowStart = new Date(Date.now() - 60000).toISOString();
+  const runMs = dev.minuteRunMs;
+  const stopMs = dev.minuteStopMs;
+  const picks = dev.minutePicksAccumulator;
+  const rpmAvg = runMs > 0 ? Number(((picks / (runMs / 60000.0))).toFixed(1)) : 0;
 
-  setInterval(async () => {
-    try {
-      // In production (reusing the persistent opcSession): 
-      // const data = await opcSession.read({ nodeId: "ns=2;s=Loom1_RPM" });
-      
-      for (let i = 1; i <= 18; i++) {
-        const state = mockLoomStates.get(i)!;
-        mutateLoomState(state);
-        updateLoomCache({ ...state });
-      }
-    } catch (err) {
-      console.error('[OPC UA] Polling error:', err);
-    }
-  }, 200); // 200ms fast tick
-}
-
-/**
- * 🐌 LOOP 2: SLOWER MODBUS RTU POLLING (Legacy Looms 19-36)
- * Simulates RS-485 serial-to-ethernet polling with built-in latency and timeouts.
- * Isolated so that serial hang-ups do NOT block the OPC UA high-speed stream.
- */
-async function startLegacyLoomsLoop() {
-  console.log('[MODBUS] Starting timeout-safe polling for Looms 19-36 (Legacy)...');
-  
-  // Scaffolded instantiation:
-  // const modbusClient = new ModbusRTU();
-  // 
-  // For physical RS-485 via USB (requires 'serialport' native dependency on deployment machine):
-  // await modbusClient.connectRTUBuffered("/dev/ttyUSB0", { baudRate: 9600 });
-  // 
-  // Or for Serial-to-Ethernet converters:
-  // await modbusClient.connectTCP("192.168.1.50", { port: 502 });
-  // 
-  // modbusClient.setTimeout(500); // Crucial to prevent blocking
-
-  // Using a self-calling async function instead of setInterval to wait for slow reads
-  async function poll() {
-    try {
-      // Simulate network/serial delay for RS-485
-      const delay = 50 + Math.random() * 100;
-      await new Promise(resolve => setTimeout(resolve, delay));
-
-      // Simulate a serial timeout (hang) 1% of the time
-      if (Math.random() < 0.01) {
-        throw new Error("Modbus RTU Timeout: Gateway did not respond in 500ms");
-      }
-
-      for (let i = 19; i <= 36; i++) {
-        const state = mockLoomStates.get(i)!;
-        mutateLoomState(state);
-        updateLoomCache({ ...state });
-      }
-    } catch (err: any) {
-      console.warn(`[MODBUS WARN] ${err.message}. Retrying next cycle...`);
-    } finally {
-      // Wait before next cycle
-      setTimeout(poll, 1000); 
-    }
-  }
-
-  poll();
-}
-
-/**
- * ☀️ LOOP 3: AMBIENT & SOLAR POLLING
- * Simulates reading Huawei SUN2000 Modbus TCP and environmental sensors.
- */
-async function startAmbientAndSolarLoop() {
-  console.log('[SOLAR] Starting Huawei SUN2000 Mock Modbus Server on port 6607...');
-  
-  // 1. Define the Mock Modbus Server (Simulating the Huawei Dongle)
-  const vector = {
-    getInputRegister: function(addr: number, unitID: number) {
-      const hour = new Date().getHours();
-      
-      // Calculate current generation (parabolic curve)
-      let generationKw = 0;
-      if (hour > 6 && hour < 19) {
-        const peak = 220; 
-        const mid = 12.5;
-        generationKw = Math.max(0, peak - (Math.pow(hour - mid, 2) * 6)) + (Math.random() * 10);
-      }
-      
-      const dailyYieldKwh = (hour > 6 ? (hour - 6) * 100 : 0) + generationKw;
-
-      if (addr === 32064) {
-        // Huawei register for Input Power (32-bit integer, usually W). We'll scale KW to W.
-        // For simplicity in our 16-bit vector, returning kW directly for the mock,
-        // but in real life we'd split a 32-bit int across two 16-bit registers.
-        return Math.floor(generationKw);
-      }
-      if (addr === 32114) {
-        // Huawei register for Daily Yield (32-bit, scaled by 100)
-        return Math.floor(dailyYieldKwh * 100);
-      }
-      return 0;
+  const counterPayload = {
+    schema: 'ahi.loom.counters/1.0' as const,
+    msgId: generateUuidV7(),
+    seq: ++dev.lastSeq,
+    machineId: dev.machineId,
+    gatewayId: 'AHI-GW-01',
+    source: dev.sources[0] || 'LDL',
+    deviceId: `LDL-${dev.machineId.replace('PIC-', '')}`,
+    ts: windowEnd,
+    tsQuality: 'SYNCED' as const,
+    replayed: false,
+    data: {
+      windowStart,
+      windowEnd,
+      picksDelta: picks,
+      picksTotal: dev.totalPicks,
+      runMs,
+      stopMs,
+      offlineMs: 0,
+      stops: { ...dev.minuteStops },
+      rpmAvgRunning: rpmAvg
     }
   };
 
-  // Start the server
-  const mockServer = new ServerTCP(vector, { host: "0.0.0.0", port: 6607, debug: false, unitID: 1 });
+  // Reset minute accumulators
+  dev.minutePicksAccumulator = 0;
+  dev.minuteRunMs = 0;
+  dev.minuteStopMs = 0;
+  dev.minuteStops = { WARP: 0, FILLING: 0, SELVEDGE: 0, OTHER: 0 };
 
-  // 2. Define the Client that polls the server
-  const solarClient = new ModbusRTU();
-  
-  // Wait a moment for server to bind
-  await new Promise(resolve => setTimeout(resolve, 500));
-  await solarClient.connectTCP("127.0.0.1", { port: 6607 });
-  console.log('[SOLAR] Edge Gateway successfully connected to mock Huawei Modbus server.');
-
-  setInterval(async () => {
-    // A. Ambient Sensors (Mocked purely in memory)
-    // 2% chance to drop pressure below critical 5.5 threshold for alert simulation
-    const isPressureDrop = Math.random() < 0.02;
-    const airPressure = isPressureDrop ? 5.2 + (Math.random() * 0.2) : 6.8 + (Math.random() * 0.4);
-
-    updateAmbientCache({
-      main_air_pressure_bar: airPressure,
-      hall_temperature_celsius: 28 + (Math.random() * 2),
-      hall_humidity_percentage: 65 + (Math.random() * 5)
-    });
-
-    // B. Solar Polling via Local Modbus TCP
-    try {
-      // Read Input Power
-      const powerData = await solarClient.readInputRegisters(32064, 1);
-      const generationKw = powerData.data[0];
-
-      // Read Daily Yield
-      const yieldData = await solarClient.readInputRegisters(32114, 1);
-      const dailyYieldKwh = yieldData.data[0] / 100;
-
-      updateSolarCache({
-        current_generation_kw: generationKw,
-        daily_yield_kwh: dailyYieldKwh
-      });
-    } catch (err) {
-      console.error('[SOLAR] Modbus read error:', err);
-    }
-
-  }, 2000); // 2-second tick for non-critical solar data
+  return counterPayload;
 }
 
 export function startDeviceDrivers() {
-  startModernLoomsLoop();
-  startLegacyLoomsLoop();
-  startAmbientAndSolarLoop();
+  console.log('⚡ Starting high-speed device simulation for 36 Picanol Looms...');
+
+  let tick = 0;
+  setInterval(() => {
+    tick++;
+    mockLoomDevices.forEach((dev) => {
+      mutateDevice(dev);
+      updateLoomCache({ ...dev });
+    });
+
+    // Ambient update
+    updateAmbientCache({
+      main_air_pressure_bar: Number((7.35 + (Math.random() * 0.2 - 0.1)).toFixed(2)),
+      hall_temperature_celsius: 27.8,
+      hall_humidity_percentage: 68.2
+    });
+
+    // Solar update
+    const hour = new Date().getHours();
+    const solarKw = (hour >= 6 && hour <= 18) ? 180 + Math.random() * 30 : 0;
+    updateSolarCache({
+      current_generation_kw: Number(solarKw.toFixed(1)),
+      daily_yield_kwh: 1250,
+      factory_load_kw: 315
+    });
+
+  }, 1000);
 }

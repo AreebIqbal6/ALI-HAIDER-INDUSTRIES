@@ -1,212 +1,339 @@
 "use client";
-import React, { useState, useEffect } from 'react'
-import { AlertTriangle, CheckCircle, Clock, Wrench, Plus } from 'lucide-react'
-import { useTelemetry } from '../../contexts/TelemetryContext'
+import React, { useState } from 'react';
+import { 
+  AlertTriangle, 
+  CheckCircle2, 
+  Wrench, 
+  UserCheck, 
+  FileText, 
+  ShieldAlert, 
+  Download,
+  Send
+} from 'lucide-react';
+import { useTelemetry } from '../../contexts/TelemetryContext';
+import { StopCategory } from '../../types';
+import toast from 'react-hot-toast';
 
-interface LogEntry {
-  id: number
-  type: 'warning' | 'error' | 'info' | 'maintenance'
-  message: string
-  timestamp: string
-  status: 'open' | 'resolved'
+interface ActionCenterProps {
+  machineId?: string;
+  loomNumber?: number;
 }
 
-export const ActionCenter: React.FC<{ userLevel?: string }> = ({ userLevel = 'admin' }) => {
-  const { ambient } = useTelemetry()
-  const [logEntries, setLogEntries] = useState<LogEntry[]>([
+interface EventLog {
+  id: string;
+  timestamp: string;
+  type: 'STOP_EVENT' | 'MAINTENANCE' | 'DISPATCH' | 'NOTE';
+  title: string;
+  description: string;
+  status: 'PENDING' | 'ACKNOWLEDGED' | 'RESOLVED';
+  technician?: string;
+  stopCategory?: StopCategory;
+}
+
+export const ActionCenter: React.FC<ActionCenterProps> = ({ machineId, loomNumber }) => {
+  const { looms, selectedMachineId, acknowledgeStop, dispatchTechnician } = useTelemetry();
+  const effectiveId = machineId || (selectedMachineId !== 'GLOBAL' ? selectedMachineId : 'PIC-427708');
+  const loom = looms[effectiveId] || Object.values(looms).find(l => l.loomNumber === loomNumber) || null;
+  const targetMachineId = loom?.machineId || effectiveId;
+  const targetLoomNumber = loom?.loomNumber || loomNumber || 1;
+
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'PENDING' | 'RESOLVED'>('ALL');
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [selectedTechnician, setSelectedTechnician] = useState('Akram Khan (Shift Lead)');
+  const [notesText, setNotesText] = useState('');
+
+  // Sample operational logbook entries
+  const [events, setEvents] = useState<EventLog[]>([
     {
-      id: 2,
-      type: 'info',
-      message: 'Scheduled maintenance reminder',
-      timestamp: '13:45',
-      status: 'open',
+      id: 'evt-101',
+      timestamp: '15:42',
+      type: 'STOP_EVENT',
+      title: 'Warp Drop Wire Contact (Warp Stop)',
+      description: 'TSF load cell detected tension drop. Heald frame #3 drop wire engaged.',
+      status: loom?.state === 'STOPPED' && loom?.stopCategory === 'WARP' ? 'PENDING' : 'RESOLVED',
+      stopCategory: 'WARP',
+      technician: 'Tariq Mehmood (Weaver)'
     },
     {
-      id: 3,
-      type: 'maintenance',
-      message: 'Oil change completed',
-      timestamp: '11:20',
-      status: 'resolved',
+      id: 'evt-102',
+      timestamp: '14:15',
+      type: 'DISPATCH',
+      title: 'Floor Technician Dispatched',
+      description: 'Inspected weft feeder 1 optical sensor (FD1). Optical eye cleaned from cotton lint.',
+      status: 'RESOLVED',
+      technician: 'Akram Khan (Shift Lead)'
     },
     {
-      id: 4,
-      type: 'error',
-      message: 'Warp break detected and repaired',
-      timestamp: '09:15',
-      status: 'resolved',
+      id: 'evt-103',
+      timestamp: '11:30',
+      type: 'MAINTENANCE',
+      title: 'Sumo Motor & ELO Lubrication Check',
+      description: 'Weekly preventive maintenance completed. Electronic Let-Off oil level normal.',
+      status: 'RESOLVED',
+      technician: 'Maintenance Dept'
     },
     {
-      id: 5,
-      type: 'info',
-      message: 'Shift change recorded',
+      id: 'evt-104',
       timestamp: '08:00',
-      status: 'resolved',
-    },
-  ])
-
-  // Dynamically inject pressure warning
-  useEffect(() => {
-    if (ambient && ambient.main_air_pressure_bar < 5.5) {
-      setLogEntries((prev) => {
-        if (!prev.find(e => e.id === 1 && e.status === 'open')) {
-          return [
-            {
-              id: 1,
-              type: 'warning',
-              message: `Main Compressor Pressure Dropped (${ambient.main_air_pressure_bar.toFixed(2)} Bar)`,
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              status: 'open'
-            },
-            ...prev
-          ]
-        }
-        return prev;
-      })
+      type: 'NOTE',
+      title: 'Morning Shift Handover Signed',
+      description: 'Yarn Lot #48/2 Cotton batch loaded on creel. Target efficiency: 91%.',
+      status: 'RESOLVED',
+      technician: 'Supervisor Naveed'
     }
-  }, [ambient?.main_air_pressure_bar])
+  ]);
 
-  const getIcon = (type: LogEntry['type']) => {
-    switch (type) {
-      case 'warning':
-        return <AlertTriangle size={18} className="text-amber-500" />
-      case 'error':
-        return <AlertTriangle size={18} className="text-red-500" />
-      case 'maintenance':
-        return <Wrench size={18} className="text-blue-500" />
-      default:
-        return <Clock size={18} className="text-slate-400" />
-    }
-  }
+  const handleAcknowledge = (id: string) => {
+    setEvents(prev => prev.map(e => e.id === id ? { ...e, status: 'ACKNOWLEDGED' } : e));
+    if (targetMachineId) acknowledgeStop(targetMachineId);
+  };
 
-  const getStatusColor = (type: LogEntry['type'], status: LogEntry['status']) => {
-    if (status === 'resolved') return 'bg-white border-slate-200 shadow-sm'
-    switch (type) {
-      case 'error':
-        return 'bg-red-50 border-red-200 shadow-sm'
-      case 'warning':
-        return 'bg-amber-50 border-amber-200 shadow-sm'
-      case 'maintenance':
-        return 'bg-blue-50 border-blue-200 shadow-sm'
-      default:
-        return 'bg-white border-slate-200 shadow-sm'
-    }
-  }
+  const handleResolve = (id: string) => {
+    setEvents(prev => prev.map(e => e.id === id ? { ...e, status: 'RESOLVED' } : e));
+    toast.success('Event marked as resolved.');
+  };
 
-  const handleResolve = (id: number) => {
-    setLogEntries(prev => prev.map(entry => entry.id === id ? { ...entry, status: 'resolved' } : entry))
-  }
+  const handleDispatchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetMachineId) return;
+    dispatchTechnician(targetMachineId, selectedTechnician);
 
-  const openActions = logEntries.filter(e => e.status === 'open').length
+    const newEvt: EventLog = {
+      id: `evt-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: 'DISPATCH',
+      title: `Technician Dispatched: ${selectedTechnician}`,
+      description: notesText || 'Assigned to inspect and clear stoppage on floor.',
+      status: 'PENDING',
+      technician: selectedTechnician
+    };
+
+    setEvents(prev => [newEvt, ...prev]);
+    setShowDispatchModal(false);
+    setNotesText('');
+  };
+
+  const handleExportShiftReport = () => {
+    toast.success(`Exported Shift Report for Loom ${targetLoomNumber} (${targetMachineId})`);
+  };
+
+  const filteredEvents = events.filter(e => {
+    if (activeFilter === 'PENDING') return e.status === 'PENDING' || e.status === 'ACKNOWLEDGED';
+    if (activeFilter === 'RESOLVED') return e.status === 'RESOLVED';
+    return true;
+  });
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto mt-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-3.5 sm:space-y-5 max-w-5xl mx-auto">
+      {/* Header with Operational Action Buttons */}
+      <div className="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-1 tracking-tight">Action Center</h2>
-          <p className="text-sm text-slate-500">Machine events and logbook</p>
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="text-blue-600 flex-shrink-0" size={20} />
+            <h2 className="text-base sm:text-xl font-bold text-slate-800 tracking-tight leading-tight">
+              Operational Action Center
+            </h2>
+          </div>
+          <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5">
+            Supervisor dispatch, stop acknowledgements, and ISO shift diary for Machine {targetLoomNumber} ({targetMachineId}).
+          </p>
         </div>
-        {userLevel === 'admin' || userLevel === 'technician' ? (
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 transition-colors rounded-lg text-white font-bold text-sm shadow-sm">
-            <Plus size={18} />
-            New Entry
+
+        {/* Operational Workflow Actions */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => setShowDispatchModal(true)}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
+          >
+            <Send size={13} />
+            <span>Dispatch Tech</span>
           </button>
-        ) : null}
+          <button
+            onClick={handleExportShiftReport}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
+          >
+            <Download size={13} />
+            <span>Shift CSV</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 flex-wrap">
-        <button className="px-4 py-2 bg-blue-600 border border-blue-600 rounded-lg text-white text-sm font-bold shadow-sm transition-colors">
-          All Events
-        </button>
-        <button className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 text-sm font-semibold hover:bg-slate-50 shadow-sm transition-colors">
-          Open
-        </button>
-        <button className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 text-sm font-semibold hover:bg-slate-50 shadow-sm transition-colors">
-          Resolved
-        </button>
-        <button className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 text-sm font-semibold hover:bg-slate-50 shadow-sm transition-colors">
-          Maintenance
-        </button>
+      <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 border-b border-slate-200 pb-2">
+        <div className="flex gap-1 overflow-x-auto scrollbar-none py-0.5">
+          <button
+            onClick={() => setActiveFilter('ALL')}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+              activeFilter === 'ALL'
+                ? 'bg-slate-800 text-white'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            All ({events.length})
+          </button>
+          <button
+            onClick={() => setActiveFilter('PENDING')}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+              activeFilter === 'PENDING'
+                ? 'bg-red-600 text-white'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            Open ({events.filter(e => e.status !== 'RESOLVED').length})
+          </button>
+          <button
+            onClick={() => setActiveFilter('RESOLVED')}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+              activeFilter === 'RESOLVED'
+                ? 'bg-emerald-600 text-white'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            Resolved ({events.filter(e => e.status === 'RESOLVED').length})
+          </button>
+        </div>
+
+        <div className="text-[10px] font-mono text-slate-400 self-end xs:self-auto">
+          SITE Area Karachi • Shift B
+        </div>
       </div>
 
-      {/* Logbook Entries */}
-      <div className="space-y-3">
-        {logEntries.map((entry) => (
-          <div
-            key={entry.id}
-            className={`rounded-lg p-4 border flex items-start gap-4 transition-colors duration-300 ${getStatusColor(
-              entry.type,
-              entry.status
-            )}`}
-          >
-            {/* Icon */}
-            <div className="flex-shrink-0 mt-1">{getIcon(entry.type)}</div>
+      {/* Events Stream */}
+      <div className="space-y-2.5 sm:space-y-3">
+        {filteredEvents.map(evt => {
+          const isPending = evt.status === 'PENDING';
+          const isAcknowledged = evt.status === 'ACKNOWLEDGED';
 
-            {/* Content */}
-            <div className="flex-1">
-              <div className="flex items-start justify-between mb-1">
-                <h3 className="font-bold text-slate-800">{entry.message}</h3>
-                <span className="text-xs font-semibold text-slate-500">{entry.timestamp}</span>
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                <span
-                  className={`text-xs font-bold px-2.5 py-1 rounded-full transition-colors ${
-                    entry.status === 'resolved'
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-slate-100 text-slate-700 border border-slate-200'
-                  }`}
-                >
-                  {entry.status === 'resolved' ? (
-                    <>
-                      <CheckCircle size={12} className="inline mr-1 mb-0.5" />
-                      Resolved
-                    </>
-                  ) : (
-                    <>
-                      <Clock size={12} className="inline mr-1 mb-0.5" />
-                      Open
-                    </>
+          return (
+            <div
+              key={evt.id}
+              className={`p-3 sm:p-4 rounded-xl border transition-all ${
+                isPending
+                  ? 'bg-red-50/40 border-red-300 shadow-sm'
+                  : isAcknowledged
+                  ? 'bg-amber-50/40 border-amber-300 shadow-sm'
+                  : 'bg-white border-slate-200 shadow-sm'
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
+                <div className="flex items-start gap-2.5">
+                  <div className="mt-0.5 flex-shrink-0">
+                    {evt.type === 'STOP_EVENT' && <AlertTriangle className="text-red-600" size={17} />}
+                    {evt.type === 'DISPATCH' && <UserCheck className="text-blue-600" size={17} />}
+                    {evt.type === 'MAINTENANCE' && <Wrench className="text-amber-600" size={17} />}
+                    {evt.type === 'NOTE' && <FileText className="text-slate-500" size={17} />}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">{evt.title}</h4>
+                      <span className="text-[9px] font-mono font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                        {evt.timestamp}
+                      </span>
+                      {evt.technician && (
+                        <span className="text-[9px] sm:text-[10px] font-medium text-slate-500">
+                          Tech: <strong className="text-slate-700">{evt.technician}</strong>
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-600 mt-1 leading-snug">{evt.description}</p>
+                  </div>
+                </div>
+
+                {/* Status Badges & Action Buttons */}
+                <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-start">
+                  {isPending && (
+                    <button
+                      onClick={() => handleAcknowledge(evt.id)}
+                      className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white rounded text-[10px] sm:text-[11px] font-bold shadow-sm transition-colors cursor-pointer"
+                    >
+                      Acknowledge
+                    </button>
                   )}
-                </span>
-                {entry.type === 'maintenance' && (
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">
-                    <Wrench size={12} className="inline mr-1 mb-0.5" />
-                    Maintenance
-                  </span>
-                )}
+                  {isAcknowledged && (
+                    <button
+                      onClick={() => handleResolve(evt.id)}
+                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded text-[10px] sm:text-[11px] font-bold shadow-sm transition-colors cursor-pointer"
+                    >
+                      Mark Resolved
+                    </button>
+                  )}
+                  {evt.status === 'RESOLVED' && (
+                    <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      <CheckCircle2 size={12} /> Resolved
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
+          );
+        })}
+      </div>
 
-            {/* Actions - only for authorized users */}
-            {(userLevel === 'admin' || userLevel === 'technician') && entry.status === 'open' ? (
-              <button 
-                onClick={() => handleResolve(entry.id)}
-                className="flex-shrink-0 px-4 py-1.5 bg-white hover:bg-blue-50 border border-slate-200 shadow-sm rounded-md text-xs font-bold text-blue-600 transition-colors"
-              >
-                Resolve
-              </button>
-            ) : null}
+      {/* Dispatch Technician Modal (Mobile Bottom Sheet / Desktop Modal) */}
+      {showDispatchModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+            {/* Mobile Grab Handle */}
+            <div className="w-12 h-1 bg-slate-300 rounded-full mx-auto mb-3 sm:hidden" />
+
+            <div className="flex items-center gap-2 mb-2 text-slate-900">
+              <UserCheck className="text-blue-600 flex-shrink-0" size={20} />
+              <h3 className="text-base sm:text-lg font-bold leading-tight">Dispatch Floor Technician</h3>
+            </div>
+            <p className="text-[11px] sm:text-xs text-slate-500 mb-3">
+              Sends an alert to the technician via SMS / PWA Push for <strong>Loom #{targetLoomNumber} ({targetMachineId})</strong>.
+            </p>
+
+            <form onSubmit={handleDispatchSubmit} className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+                  On-Duty Technician
+                </label>
+                <select
+                  value={selectedTechnician}
+                  onChange={(e) => setSelectedTechnician(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 min-h-[40px]"
+                >
+                  <option value="Akram Khan (Shift Lead)">Akram Khan (Shift Lead)</option>
+                  <option value="Tariq Mehmood (Senior Weaver)">Tariq Mehmood (Senior Weaver)</option>
+                  <option value="Imran Baig (Electronics / Sumo)">Imran Baig (Electronics / Sumo)</option>
+                  <option value="Farooq Ahmed (SmartShed)">Farooq Ahmed (SmartShed)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+                  Instructions / Symptom Notes
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Check drop wire bar #2 or rethread warp end on creel."
+                  value={notesText}
+                  onChange={(e) => setNotesText(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowDispatchModal(false)}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer min-h-[40px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-sm transition-colors cursor-pointer min-h-[40px]"
+                >
+                  Confirm Dispatch
+                </button>
+              </div>
+            </form>
           </div>
-        ))}
-      </div>
-
-      {/* Statistics */}
-      <div className="grid grid-cols-3 gap-4 pt-6 border-t border-slate-200">
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm text-center">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Total Events</p>
-          <p className="text-3xl font-bold text-slate-800">{logEntries.length}</p>
         </div>
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm text-center">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Open Actions</p>
-          <p className="text-3xl font-bold text-amber-600">{openActions}</p>
-        </div>
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm text-center">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Uptime</p>
-          <p className="text-3xl font-bold text-emerald-600">99.2%</p>
-        </div>
-      </div>
+      )}
     </div>
-  )
-}
-
+  );
+};
