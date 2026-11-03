@@ -24,8 +24,13 @@ export const GlobalDashboard: React.FC = () => {
       <div className="sm:sticky sm:top-0 z-20 sm:bg-[#e8ebf0]/95 sm:backdrop-blur-sm pb-3 sm:pb-4 pt-0.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 mb-2.5 sm:mb-3">
           <div className="flex items-center gap-2 sm:gap-2.5">
-            <div className="p-2 rounded-xl bg-slate-900 text-white flex-shrink-0 shadow-sm">
-              <Factory size={20} className="sm:w-5 sm:h-5" />
+            <div className="h-9 w-9 sm:h-10 sm:w-10 p-1.5 rounded-xl bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <img 
+                src="/logo.png" 
+                alt="Ali Haider Industries" 
+                className="h-full w-full object-contain filter invert brightness-0" 
+                style={{ filter: 'brightness(0) invert(1)' }} 
+              />
             </div>
             <div>
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">

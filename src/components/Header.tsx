@@ -69,10 +69,15 @@ export const Header: React.FC = () => {
           {/* Logo & Brand Title */}
           <div 
             onClick={() => { setSelectedMachineId('GLOBAL'); router.push('/'); }}
-            className="flex items-center gap-2 cursor-pointer"
+            className="flex items-center gap-2.5 cursor-pointer"
           >
-            <div className="h-7 w-7 rounded-lg bg-blue-600 flex items-center justify-center font-black text-white text-xs shadow-sm flex-shrink-0">
-              AH
+            <div className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center flex-shrink-0">
+              <img 
+                src="/logo.png" 
+                alt="Ali Haider Industries" 
+                className="h-full w-full object-contain filter invert brightness-0" 
+                style={{ filter: 'brightness(0) invert(1)' }} 
+              />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-1">
