@@ -1,0 +1,71 @@
+# ==============================================================================
+# WeaveSync SCADA - Industrial Edge Gateway Docker Compose Stack
+# Client: Ali Haider Industries (SITE Industrial Area, Karachi)
+# Target Environment: Industrial Gateway PC (Ubuntu 24.04 LTS)
+# Services: eclipse-mosquitto:2 (MQTT Broker) + edge-node (Node.js 22 LTS Gateway)
+# ==============================================================================
+
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------------------------
+  # Service 1: MQTT Message Broker (Eclipse Mosquitto v2)
+  # Ingests telemetry packets from WT32-ETH01 nodes on the OT VLAN
+  # ----------------------------------------------------------------------------
+  mqtt-broker:
+    image: eclipse-mosquitto:2
+    container_name: weavesync-mqtt-broker
+    restart: unless-stopped
+    ports:
+      # Port 1883: Unencrypted MQTT for Pilot & Bench Testing
+      - "1883:1883"
+      # Port 8883: MQTTS / TLS for Phase 2 Production Security
+      - "8883:8883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    networks:
+      - weavesync-internal
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -t '$$SYS/broker/uptime' -C 1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # Service 2: Edge Gateway Node (Collector, Outbox, and Forwarder Services)
+  # Aggregates 36 Picanol looms, buffers in SQLite WAL, and forwards to Supabase
+  # ----------------------------------------------------------------------------
+  edge-node:
+    build:
+      context: ../edge-gateway
+      dockerfile: Dockerfile
+    container_name: weavesync-edge-node
+    restart: unless-stopped
+    depends_on:
+      mqtt-broker:
+        condition: service_healthy
+    ports:
+      # Port 4841: Direct LAN HTTP Ingestion Bridge for WT32-ETH01 hardware node
+      - "4841:4841"
+    environment:
+      - NODE_ENV=production
+      - GATEWAY_MODE=${GATEWAY_MODE:-HYBRID}
+      - PILOT_LOOM_ID=${PILOT_LOOM_ID:-PIC-427708}
+      - EDGE_GATEWAY_HTTP_PORT=4841
+      - MQTT_BROKER_URL=mqtt://mqtt-broker:1883
+      - SQLITE_DB_PATH=/app/data/sqlite/outbox.db
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
+    volumes:
+      # Local persistent storage for SQLite WAL Outbox (survives restarts/reboots)
+      - ./data/sqlite:/app/data/sqlite
+    networks:
+      - weavesync-internal
+
+networks:
+  weavesync-internal:
+    name: weavesync-internal
+    driver: bridge

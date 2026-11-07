@@ -12,15 +12,27 @@ node_modules/
 
 # Production builds
 /build
-/dist
+dist/
+**/dist/
 
-# Environment variable files (Strictly ignore all secrets)
+# Runtime data & SQLite WAL
+data/
+**/data/
+deploy/mosquitto/data/
+deploy/mosquitto/log/
+*.db
+*.db-wal
+*.db-shm
+
+# Environment variable files (Strictly ignore secrets, preserve example templates)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 .env.*
+!.env.example
+!**/.env.example
 
 # Debug logs
 npm-debug.log*
