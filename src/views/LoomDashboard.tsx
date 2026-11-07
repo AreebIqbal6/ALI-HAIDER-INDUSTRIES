@@ -11,14 +11,16 @@ import {
   AlertCircle, 
   CheckCircle2, 
   Clock, 
-  Tag
+  Tag,
+  Zap
 } from 'lucide-react';
 import { SensorDashboard } from '../components/omniplus/SensorDashboard';
 import { ClimateMonitoring } from '../components/omniplus/ClimateMonitoring';
 import { ActionCenter } from '../components/omniplus/ActionCenter';
+import { HardwarePinInspector } from '../components/omniplus/HardwarePinInspector';
 import { OPERATOR_REASON_LABELS } from '../types';
 
-type Tab = 'subsystems' | 'sensors' | 'climate' | 'logs';
+type Tab = 'subsystems' | 'hardware' | 'sensors' | 'climate' | 'logs';
 
 export const LoomDashboard: React.FC = () => {
   const { 
@@ -129,6 +131,17 @@ export const LoomDashboard: React.FC = () => {
         >
           <Cpu size={15} />
           <span>Subsystems</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('hardware')}
+          className={`flex items-center gap-1.5 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+            activeTab === 'hardware'
+              ? 'bg-amber-600 text-white shadow-sm'
+              : 'text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100'
+          }`}
+        >
+          <Zap size={15} className={activeTab === 'hardware' ? 'text-white' : 'text-amber-600'} />
+          <span>XP_CBMP_P9 Pin Inspector</span>
         </button>
         <button
           onClick={() => setActiveTab('sensors')}
@@ -248,6 +261,9 @@ export const LoomDashboard: React.FC = () => {
                 </span>
               </div>
             </div>
+
+            {/* Live XP_CBMP_P9 Optocoupler Pin Inspector */}
+            <HardwarePinInspector loom={loom} />
 
             {/* Subsystem Hardware Diagnostics Matrix */}
             <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3.5 sm:p-5 shadow-sm">
@@ -381,6 +397,11 @@ export const LoomDashboard: React.FC = () => {
           </div>
         )}
 
+        {activeTab === 'hardware' && (
+          <div className="max-w-5xl mx-auto">
+            <HardwarePinInspector loom={loom} />
+          </div>
+        )}
         {activeTab === 'sensors' && <SensorDashboard machineId={loom.machineId} />}
         {activeTab === 'climate' && <ClimateMonitoring />}
         {activeTab === 'logs' && <ActionCenter machineId={loom.machineId} loomNumber={loom.loomNumber} />}

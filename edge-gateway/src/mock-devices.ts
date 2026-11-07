@@ -29,48 +29,49 @@ export interface RealLoomDefinition {
 }
 
 // 36 Official Machines registered at Ali Haider Industries (Section 10.1)
+// Loom 1 is the Pilot Hardware Node (WT32-ETH01 + PC817 tapping XP_CBMP_P9)
 export const OFFICIAL_FLEET_36: RealLoomDefinition[] = [
-  // 2x OmniPlus Summum (11/2012 & 05/2015)
-  { loomNumber: 1, machineId: 'PIC-332235', family: 'OmniPlus Summum', yearRecorded: '11/2012', sources: ['LDL', 'BICOM_ETH'], setRpm: 850, weftDensity: 27.2, ipAddress: '192.168.10.101' },
-  { loomNumber: 2, machineId: 'PIC-315816', family: 'OmniPlus Summum', yearRecorded: '05/2015', sources: ['LDL', 'BICOM_ETH'], setRpm: 850, weftDensity: 27.2, ipAddress: '192.168.10.102' },
+  // 25x OmniPlus-i (07–08/2021): PIC-427708 to PIC-427732 -> Looms 1 to 25 (Loom 1 = PILOT NODE)
+  { loomNumber: 1,  machineId: 'PIC-427708', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.101' },
+  { loomNumber: 2,  machineId: 'PIC-427709', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.102' },
+  { loomNumber: 3,  machineId: 'PIC-427710', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.103' },
+  { loomNumber: 4,  machineId: 'PIC-427711', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.104' },
+  { loomNumber: 5,  machineId: 'PIC-427712', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.105' },
+  { loomNumber: 6,  machineId: 'PIC-427713', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.106' },
+  { loomNumber: 7,  machineId: 'PIC-427714', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.107' },
+  { loomNumber: 8,  machineId: 'PIC-427715', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.108' },
+  { loomNumber: 9,  machineId: 'PIC-427716', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.109' },
+  { loomNumber: 10, machineId: 'PIC-427717', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.110' },
+  { loomNumber: 11, machineId: 'PIC-427718', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.111' },
+  { loomNumber: 12, machineId: 'PIC-427719', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.112' },
+  { loomNumber: 13, machineId: 'PIC-427720', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.113' },
+  { loomNumber: 14, machineId: 'PIC-427721', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.114' },
+  { loomNumber: 15, machineId: 'PIC-427722', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.115' },
+  { loomNumber: 16, machineId: 'PIC-427723', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.116' },
+  { loomNumber: 17, machineId: 'PIC-427724', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.117' },
+  { loomNumber: 18, machineId: 'PIC-427725', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.118' },
+  { loomNumber: 19, machineId: 'PIC-427726', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.119' },
+  { loomNumber: 20, machineId: 'PIC-427727', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.120' },
+  { loomNumber: 21, machineId: 'PIC-427728', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.121' },
+  { loomNumber: 22, machineId: 'PIC-427729', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.122' },
+  { loomNumber: 23, machineId: 'PIC-427730', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.123' },
+  { loomNumber: 24, machineId: 'PIC-427731', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.124' },
+  { loomNumber: 25, machineId: 'PIC-427732', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.125' },
 
-  // 25x OmniPlus-i (07–08/2021): PIC-427708 to PIC-427732
-  { loomNumber: 3,  machineId: 'PIC-427708', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.103' },
-  { loomNumber: 4,  machineId: 'PIC-427709', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.104' },
-  { loomNumber: 5,  machineId: 'PIC-427710', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.105' },
-  { loomNumber: 6,  machineId: 'PIC-427711', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.106' },
-  { loomNumber: 7,  machineId: 'PIC-427712', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.107' },
-  { loomNumber: 8,  machineId: 'PIC-427713', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.108' },
-  { loomNumber: 9,  machineId: 'PIC-427714', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.109' },
-  { loomNumber: 10, machineId: 'PIC-427715', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.110' },
-  { loomNumber: 11, machineId: 'PIC-427716', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.111' },
-  { loomNumber: 12, machineId: 'PIC-427717', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.112' },
-  { loomNumber: 13, machineId: 'PIC-427718', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.113' },
-  { loomNumber: 14, machineId: 'PIC-427719', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.114' },
-  { loomNumber: 15, machineId: 'PIC-427720', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.115' },
-  { loomNumber: 16, machineId: 'PIC-427721', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.116' },
-  { loomNumber: 17, machineId: 'PIC-427722', family: 'OmniPlus-i', yearRecorded: '07/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.117' },
-  { loomNumber: 18, machineId: 'PIC-427723', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.118' },
-  { loomNumber: 19, machineId: 'PIC-427724', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.119' },
-  { loomNumber: 20, machineId: 'PIC-427725', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.120' },
-  { loomNumber: 21, machineId: 'PIC-427726', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.121' },
-  { loomNumber: 22, machineId: 'PIC-427727', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.122' },
-  { loomNumber: 23, machineId: 'PIC-427728', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.123' },
-  { loomNumber: 24, machineId: 'PIC-427729', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.124' },
-  { loomNumber: 25, machineId: 'PIC-427730', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.125' },
-  { loomNumber: 26, machineId: 'PIC-427731', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.126' },
-  { loomNumber: 27, machineId: 'PIC-427732', family: 'OmniPlus-i', yearRecorded: '08/2021', sources: ['LDL', 'BICOM_ETH'], setRpm: 874, weftDensity: 27.2, ipAddress: '192.168.10.127' },
+  // 9x OmniPlus 800 (09/2005–02/2006): Looms 26 to 34
+  { loomNumber: 26, machineId: 'PIC-279327', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.126' },
+  { loomNumber: 27, machineId: 'PIC-278863', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.127' },
+  { loomNumber: 28, machineId: 'PIC-279323', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.128' },
+  { loomNumber: 29, machineId: 'PIC-279105', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.129' },
+  { loomNumber: 30, machineId: 'PIC-279099', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.130' },
+  { loomNumber: 31, machineId: 'PIC-281560', family: 'OmniPlus 800', yearRecorded: '02/2006', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.131' },
+  { loomNumber: 32, machineId: 'PIC-281554', family: 'OmniPlus 800', yearRecorded: '02/2006', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.132' },
+  { loomNumber: 33, machineId: 'PIC-281553', family: 'OmniPlus 800', yearRecorded: '02/2006', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.133' },
+  { loomNumber: 34, machineId: 'PIC-281481', family: 'OmniPlus 800', yearRecorded: '02/2006', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.134' },
 
-  // 9x OmniPlus 800 (09/2005–02/2006)
-  { loomNumber: 28, machineId: 'PIC-279327', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.128' },
-  { loomNumber: 29, machineId: 'PIC-278863', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.129' },
-  { loomNumber: 30, machineId: 'PIC-279323', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.130' },
-  { loomNumber: 31, machineId: 'PIC-279105', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.131' },
-  { loomNumber: 32, machineId: 'PIC-279099', family: 'OmniPlus 800', yearRecorded: '09/2005', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.132' },
-  { loomNumber: 33, machineId: 'PIC-281560', family: 'OmniPlus 800', yearRecorded: '02/2006', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.133' },
-  { loomNumber: 34, machineId: 'PIC-281554', family: 'OmniPlus 800', yearRecorded: '02/2006', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.134' },
-  { loomNumber: 35, machineId: 'PIC-281553', family: 'OmniPlus 800', yearRecorded: '02/2006', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.135' },
-  { loomNumber: 36, machineId: 'PIC-281481', family: 'OmniPlus 800', yearRecorded: '02/2006', sources: ['LDL'], setRpm: 501, weftDensity: 38.2, ipAddress: '192.168.20.136' },
+  // 2x OmniPlus Summum (11/2012 & 05/2015): Looms 35 to 36
+  { loomNumber: 35, machineId: 'PIC-332235', family: 'OmniPlus Summum', yearRecorded: '11/2012', sources: ['LDL', 'BICOM_ETH'], setRpm: 850, weftDensity: 27.2, ipAddress: '192.168.10.135' },
+  { loomNumber: 36, machineId: 'PIC-315816', family: 'OmniPlus Summum', yearRecorded: '05/2015', sources: ['LDL', 'BICOM_ETH'], setRpm: 850, weftDensity: 27.2, ipAddress: '192.168.10.136' },
 ];
 
 export const mockLoomDevices: Map<string, LoomDeviceState> = new Map();
@@ -120,8 +121,21 @@ export function addMockLoom(def: RealLoomDefinition): LoomDeviceState {
   return newState;
 }
 
+export const liveHardwareLooms: Set<string> = new Set();
+let currentGatewayMode: 'SIM' | 'HYBRID' | 'LIVE' = 'HYBRID';
+
+export function setGatewayMode(mode: 'SIM' | 'HYBRID' | 'LIVE') {
+  currentGatewayMode = mode;
+}
+
 // Mutate state every second
 function mutateDevice(dev: LoomDeviceState): CanonicalEnvelope<any>[] {
+  // If the machine is streaming live hardware data (e.g. WT32-ETH01 on Loom 1 PIC-427708),
+  // automatically suppress simulated loop in HYBRID or LIVE mode
+  if (currentGatewayMode !== 'SIM' && liveHardwareLooms.has(dev.machineId)) {
+    return [];
+  }
+
   const envelopes: CanonicalEnvelope<any>[] = [];
   const now = new Date().toISOString();
   dev.lastSeq++;

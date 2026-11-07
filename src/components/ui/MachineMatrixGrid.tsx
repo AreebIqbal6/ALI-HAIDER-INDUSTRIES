@@ -17,7 +17,8 @@ import {
   Search,
   ArrowRight,
   Filter,
-  X
+  X,
+  Zap
 } from 'lucide-react';
 
 interface MachineMatrixGridProps {
@@ -41,7 +42,7 @@ interface MachineMatrixGridProps {
   ) => Promise<boolean>;
 }
 
-type FilterState = 'ALL' | 'RUNNING' | 'STOPPED' | 'OMNI_I' | 'OMNI_800' | 'SUMMUM';
+type FilterState = 'ALL' | 'RUNNING' | 'STOPPED' | 'LONG_STOP' | 'OMNI_I' | 'OMNI_800' | 'SUMMUM';
 
 export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({ 
   looms, 
@@ -54,7 +55,8 @@ export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeLongStopMachine, setActiveLongStopMachine] = useState<LoomClientState | null>(null);
 
-  // Form states for Provisioning Modal
+  // Form states for Provisioning Modal (Supports Picanol & Toyota expansion)
+  const [prefix, setPrefix] = useState<'PIC' | 'TOY'>('PIC');
   const [newLoomNumber, setNewLoomNumber] = useState<number>(37);
   const [newSerial, setNewSerial] = useState('458901');
   const [newFamily, setNewFamily] = useState<LoomFamily>('OmniPlus-i');
@@ -86,6 +88,7 @@ export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({
       // 2. Status Filter
       if (activeFilter === 'RUNNING') return loom.state === 'RUNNING';
       if (activeFilter === 'STOPPED') return loom.state === 'STOPPED';
+      if (activeFilter === 'LONG_STOP') return loom.isLongStop && loom.state === 'STOPPED';
       if (activeFilter === 'OMNI_I') return loom.family === 'OmniPlus-i';
       if (activeFilter === 'OMNI_800') return loom.family === 'OmniPlus 800';
       if (activeFilter === 'SUMMUM') return loom.family === 'OmniPlus Summum';
@@ -95,13 +98,14 @@ export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({
 
   const runningCount = rawLoomList.filter(l => l.state === 'RUNNING').length;
   const stoppedCount = rawLoomList.filter(l => l.state === 'STOPPED').length;
+  const longStopCount = rawLoomList.filter(l => l.state === 'STOPPED' && l.isLongStop).length;
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!onAddMachine) return;
     setIsProvisioning(true);
     try {
-      const machineId = `PIC-${newSerial.trim()}`;
+      const machineId = `${prefix}-${newSerial.trim()}`;
       const sources: SourceKind[] = newFamily === 'OmniPlus 800' ? ['LDL'] : ['LDL', 'BICOM_ETH'];
       await onAddMachine(machineId, newLoomNumber, newFamily, sources, newSetRpm, newDensity);
       setShowAddModal(false);
@@ -181,6 +185,18 @@ export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({
           >
             <span className="w-2 h-2 rounded-full bg-red-400" />
             Stopped ({stoppedCount})
+          </button>
+
+          <button
+            onClick={() => setActiveFilter('LONG_STOP')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
+              activeFilter === 'LONG_STOP'
+                ? 'bg-amber-600 text-white'
+                : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
+            }`}
+          >
+            <AlertTriangle size={12} className={activeFilter === 'LONG_STOP' ? 'text-white' : 'text-amber-600'} />
+            Long Stop &gt;5m ({longStopCount})
           </button>
 
           <button
@@ -287,6 +303,11 @@ export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    {(loom.isPilotNode || loom.machineId === 'PIC-427708' || loom.loomNumber === 1) && (
+                      <span className="text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 uppercase tracking-wider flex items-center gap-1 shadow-sm animate-pulse">
+                        <Zap size={9} className="fill-slate-950" /> PILOT NODE
+                      </span>
+                    )}
                     <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                       isRunning 
                         ? 'bg-emerald-500 ring-2 sm:ring-4 ring-emerald-100' 
@@ -495,35 +516,48 @@ export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({
 
             <div className="flex items-center gap-2 mb-2 text-slate-900">
               <Cpu className="text-blue-600 flex-shrink-0" size={22} />
-              <h3 className="text-base sm:text-lg font-black leading-tight">Provision New Picanol Loom</h3>
+              <h3 className="text-base sm:text-lg font-black leading-tight">Provision Machine / Driver</h3>
             </div>
             <p className="text-[11px] sm:text-xs text-slate-500 mb-3">
-              Demonstrates onboarding Ali Haider Industries' newly ordered machines (Looms 37, 38, 39) in 10 seconds.
+              Onboard Ali Haider Industries' 3 new looms (Looms 37–39) or neighboring 55 Toyota looms in 5 seconds.
             </p>
 
             <form onSubmit={handleAddSubmit} className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
-                    Loom Number
+                    Prefix
+                  </label>
+                  <select
+                    value={prefix}
+                    onChange={(e) => setPrefix(e.target.value as 'PIC' | 'TOY')}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold min-h-[40px] text-slate-900"
+                  >
+                    <option value="PIC">PIC (Picanol)</option>
+                    <option value="TOY">TOY (Toyota)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+                    Loom #
                   </label>
                   <input
                     type="number"
                     min={1}
                     value={newLoomNumber}
                     onChange={(e) => setNewLoomNumber(parseInt(e.target.value, 10))}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold min-h-[40px]"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold min-h-[40px] text-slate-900"
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
-                    Serial Number (PIC-)
+                    Serial #
                   </label>
                   <input
                     type="text"
                     value={newSerial}
                     onChange={(e) => setNewSerial(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold min-h-[40px]"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold min-h-[40px] text-slate-900"
                   />
                 </div>
               </div>

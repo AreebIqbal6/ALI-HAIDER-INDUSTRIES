@@ -8,9 +8,15 @@ import {
   BarChart2, 
   Gauge, 
   ArrowLeft,
-  Clock,
   Wifi,
-  WifiOff
+  WifiOff,
+  Zap,
+  Play,
+  AlertTriangle,
+  RotateCcw,
+  Sliders,
+  Cloud,
+  HardDrive
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useRouter, usePathname } from 'next/navigation';
@@ -21,11 +27,18 @@ export const Header: React.FC = () => {
     selectedMachineId, 
     setSelectedMachineId, 
     shiftKpis,
-    connectionStatus 
+    connectionStatus,
+    demoMode,
+    setDemoMode,
+    triggerSimulatedStop,
+    clearSimulatedStop
   } = useTelemetry();
 
   const [time, setTime] = useState(new Date());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [pilotDrawerOpen, setPilotDrawerOpen] = useState(false);
+  const [targetPilotLoom, setTargetPilotLoom] = useState<string>('PIC-427708');
+
   const router = useRouter();
   const pathname = usePathname();
 
@@ -136,7 +149,7 @@ export const Header: React.FC = () => {
           )}
         </div>
 
-        {/* Center: Live Floor Telemetry Pills (Speed & Status) - Visible sm+ */}
+        {/* Center: Live Floor Telemetry Pills */}
         <div className="hidden sm:flex items-center gap-2 md:gap-3 text-xs font-mono">
           <div className="flex items-center gap-1.5 bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700">
             <Gauge size={14} className="text-slate-400" />
@@ -154,11 +167,34 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: Clock & Shift Info */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Right: Demo Mode Toggle, Pilot Controls & Shift Clock */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Demo Mode Toggle: Local vs Cloud */}
+          <button
+            onClick={() => setDemoMode(demoMode === 'CLOUD' ? 'LOCAL' : 'CLOUD')}
+            title="Toggle between Cloud Supabase Realtime and Local High-Speed Simulator"
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+              demoMode === 'CLOUD'
+                ? 'bg-sky-950/70 border-sky-600 text-sky-300 hover:bg-sky-900/80'
+                : 'bg-emerald-950/70 border-emerald-600 text-emerald-300 hover:bg-emerald-900/80'
+            }`}
+          >
+            {demoMode === 'CLOUD' ? <Cloud size={13} className="text-sky-400" /> : <HardDrive size={13} className="text-emerald-400" />}
+            <span>{demoMode === 'CLOUD' ? 'Cloud RT' : 'Local Sim'}</span>
+          </button>
+
+          {/* Secret Weapon Pilot Controls Button */}
+          <button
+            onClick={() => setPilotDrawerOpen(true)}
+            className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Open CEO Demo Pilot Trigger Controls"
+          >
+            <Zap size={14} className="text-amber-400 animate-pulse" />
+            <span className="hidden xs:inline">Pilot Controls</span>
+          </button>
+
           <div className="flex flex-col items-end leading-tight font-mono text-slate-300">
             <div className="text-xs font-bold tabular-nums text-white">
-              {/* Short format on mobile to prevent overflow */}
               <span className="inline sm:hidden">{format(time, 'hh:mm a')}</span>
               <span className="hidden sm:inline">{format(time, 'hh:mm:ss a')}</span>
             </div>
@@ -166,12 +202,115 @@ export const Header: React.FC = () => {
               {shiftKpis.shift.name}
             </div>
           </div>
-
-          <div className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 hidden xs:inline">
-            v1.0
-          </div>
         </div>
       </header>
+
+      {/* Secret Weapon Pilot Controls Drawer Modal */}
+      {pilotDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="bg-[#1e293b] border border-slate-700 w-full max-w-md rounded-2xl p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-amber-500/20 border border-amber-500/40 rounded-lg text-amber-400">
+                  <Sliders size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Pilot Demo Trigger Deck</h3>
+                  <p className="text-[11px] text-slate-400">On-demand simulated events for CEO pitch</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setPilotDrawerOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Target Machine Selection */}
+            <div>
+              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+                Target Machine:
+              </label>
+              <select
+                value={targetPilotLoom}
+                onChange={(e) => setTargetPilotLoom(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-blue-500 cursor-pointer"
+              >
+                {Object.values(looms).map(l => (
+                  <option key={l.machineId} value={l.machineId}>
+                    Loom #{l.loomNumber} ({l.machineId} • {l.family}) {l.machineId === 'PIC-427708' ? '★ PILOT NODE' : ''} [{l.state}]
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Trigger Buttons */}
+            <div className="space-y-2 pt-1">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Stoppage Triggers (Live Alert & Workflow Verification):
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    triggerSimulatedStop(targetPilotLoom, 'WARP');
+                    setPilotDrawerOpen(false);
+                  }}
+                  className="flex items-center justify-center gap-1.5 p-2.5 rounded-xl bg-amber-950/50 hover:bg-amber-900/60 border border-amber-700 text-amber-200 text-xs font-bold transition-colors cursor-pointer"
+                >
+                  <AlertTriangle size={15} className="text-amber-400" />
+                  <span>WARP Stop</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    triggerSimulatedStop(targetPilotLoom, 'FILLING');
+                    setPilotDrawerOpen(false);
+                  }}
+                  className="flex items-center justify-center gap-1.5 p-2.5 rounded-xl bg-orange-950/50 hover:bg-orange-900/60 border border-orange-700 text-orange-200 text-xs font-bold transition-colors cursor-pointer"
+                >
+                  <AlertTriangle size={15} className="text-orange-400" />
+                  <span>FILLING Stop</span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => {
+                  triggerSimulatedStop(targetPilotLoom, 'LONG_STOP');
+                  setPilotDrawerOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-red-950/60 hover:bg-red-900/70 border border-red-700 text-red-200 text-xs font-bold transition-colors cursor-pointer shadow-md"
+              >
+                <AlertTriangle size={16} className="text-red-400 animate-pulse" />
+                <span>Simulate &gt;5m Long Stop (Trigger Reason Modal)</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  clearSimulatedStop(targetPilotLoom);
+                  setPilotDrawerOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/70 border border-emerald-700 text-emerald-200 text-xs font-bold transition-colors cursor-pointer"
+              >
+                <Play size={15} className="text-emerald-400" />
+                <span>Resume Loom (Set RUNNING)</span>
+              </button>
+            </div>
+
+            {/* Quick Mode Toggle inside drawer */}
+            <div className="pt-2 border-t border-slate-700 flex items-center justify-between text-xs">
+              <span className="text-slate-400">SCADA Data Source:</span>
+              <button
+                onClick={() => setDemoMode(demoMode === 'CLOUD' ? 'LOCAL' : 'CLOUD')}
+                className="text-xs font-bold text-blue-400 hover:underline cursor-pointer"
+              >
+                Switch to {demoMode === 'CLOUD' ? 'Local Simulator' : 'Cloud Realtime'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Collapsible Navigation Drawer */}
       {mobileMenuOpen && (
@@ -212,10 +351,17 @@ export const Header: React.FC = () => {
               <BarChart2 size={18} className="text-emerald-400" />
               <span>Verified Shift Analytics & OEE</span>
             </button>
+            <button
+              onClick={() => { setPilotDrawerOpen(true); setMobileMenuOpen(false); }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-amber-400 bg-amber-950/40 border border-amber-800 text-left cursor-pointer"
+            >
+              <Zap size={16} />
+              <span>Open Pilot Trigger Controls</span>
+            </button>
             {selectedMachineId !== 'GLOBAL' && (
               <button 
                 onClick={() => { setSelectedMachineId('GLOBAL'); setMobileMenuOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-amber-400 bg-amber-950/40 border border-amber-800 text-left cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-blue-400 bg-blue-950/40 border border-blue-800 text-left cursor-pointer"
               >
                 <ArrowLeft size={16} />
                 <span>Exit Inspection (Back to Fleet)</span>
@@ -238,7 +384,7 @@ export const Header: React.FC = () => {
                 </>
               )}
             </span>
-            <span className="text-[10px]">SITE Area, Karachi</span>
+            <span className="text-[10px] text-slate-500">SITE Area, Karachi</span>
           </div>
         </div>
       )}

@@ -200,6 +200,46 @@ export interface LongStopDeclaration {
   notes?: string;
 }
 
+// 8. Hardware Node & Optocoupler Pin Diagnostics (XP_CBMP_P9 Tapping)
+export interface ParallelPinState {
+  piStrt: boolean; // Pin 9: Start / Run status (1 = RUNNING, 0 = STOPPED)
+  piPp: boolean;   // Pin 7: Pick pulse counter (rising edge per pick)
+  piWd: boolean;   // Pin 8: Warp stop detection (active high opto trigger)
+  piFd: boolean;   // Pin 10: Filling / Weft stop detection
+  piLd: boolean;   // Pin 6: Leno / Selvedge stop detection
+  lastPulseTs: string;
+  classificationWindow: {
+    windowStartRelMs: number; // -300ms
+    windowEndRelMs: number;   // +1000ms
+    detectedReason: StopCategory;
+    priorityOrder: string[];   // ['FILLING', 'WARP', 'SELVEDGE', 'OTHER']
+    confidence: number;       // e.g. 0.99
+    isWithinWindow: boolean;
+  };
+}
+
+export interface HardwareDiagnostics {
+  isPilotNode: boolean; // True for Loom 1 (PIC-427708)
+  firmwareVersion: string; // e.g. "AHI-WT32-v1.0.4"
+  lanPhyStatus: 'CONNECTED_100MBPS' | 'LINK_DOWN';
+  ipAddress: string;
+  macAddress: string;
+  framBuffer: {
+    totalBytes: number;
+    usedBytes: number;
+    wearPct: number;
+    recordsBuffered: number;
+  };
+  outbox: {
+    pendingPackets: number;
+    droppedPackets: number;
+    inflight: boolean;
+    lastAckTs: string | null;
+    latencyMs: number;
+  };
+  optocouplerPins: ParallelPinState;
+}
+
 // Unified Client Model for UI Components (backed by Canonical Envelopes)
 export interface LoomClientState {
   machineId: string;
@@ -209,6 +249,7 @@ export interface LoomClientState {
   setRpm: number;
   weftDensityPicksPerCm: number;
   ipAddress: string;
+  isPilotNode?: boolean; // Highlighted badge for WT32-ETH01 hardware node
   
   // Real-time State
   state: LoomStateKind;
@@ -244,6 +285,7 @@ export interface LoomClientState {
     leftRelayBar: number;
     rightRelayBar: number;
   };
+  hardwareDiagnostics?: HardwareDiagnostics;
 
   // Long Stop Declaration Tracking (> 5 mins)
   isLongStop: boolean;
@@ -311,6 +353,8 @@ export interface TelemetryContextType {
   gatewayHealth: GatewayHealthData;
   connectionStatus: 'CONNECTED_REALTIME' | 'OFFLINE_MOCK_FALLBACK' | 'CONNECTING';
   mockMode: boolean;
+  demoMode: 'CLOUD' | 'LOCAL';
+  setDemoMode: (mode: 'CLOUD' | 'LOCAL') => void;
   
   // Actions
   assignLongStopReason: (
@@ -333,4 +377,8 @@ export interface TelemetryContextType {
   
   acknowledgeStop: (machineId: string, note?: string) => void;
   dispatchTechnician: (machineId: string, technicianName: string) => void;
+
+  // Pilot Demo Secret Weapon Controls
+  triggerSimulatedStop: (machineId: string, category: 'WARP' | 'FILLING' | 'SELVEDGE' | 'LONG_STOP') => Promise<void>;
+  clearSimulatedStop: (machineId: string) => Promise<void>;
 }

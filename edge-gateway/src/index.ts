@@ -1,3 +1,4 @@
+import http from 'http';
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import { 
@@ -5,7 +6,9 @@ import {
   mockLoomDevices, 
   generateMinuteCounter, 
   generateUuidV7,
-  OFFICIAL_FLEET_36
+  OFFICIAL_FLEET_36,
+  liveHardwareLooms,
+  setGatewayMode
 } from './mock-devices';
 
 dotenv.config();
@@ -14,6 +17,13 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+
+export type GatewayMode = 'SIM' | 'HYBRID' | 'LIVE';
+export const GATEWAY_MODE: GatewayMode = (process.env.GATEWAY_MODE as GatewayMode) || 'HYBRID';
+export const PILOT_LOOM_ID = process.env.PILOT_LOOM_ID || 'PIC-427708';
+const HTTP_PORT = Number(process.env.EDGE_GATEWAY_HTTP_PORT || 4841);
+
+setGatewayMode(GATEWAY_MODE);
 
 export type SourceKind = 'LDL' | 'BICOM_ETH' | 'BICOM_OPCUA' | 'BICOM_SERIAL' | 'SENSOR_KIT' | 'GATEWAY' | 'SIM';
 export type StopCategory = 'WARP' | 'FILLING' | 'SELVEDGE' | 'OTHER';
@@ -85,6 +95,7 @@ export interface LoomDeviceState {
   warpTensionKn: number;
   airPressureBar: number;
   lastSeq: number;
+  isLiveHardware?: boolean;
 }
 
 export interface AmbientState {
@@ -117,22 +128,124 @@ export function updateSolarCache(data: SolarState) {
   telemetryCache.solar = data;
 }
 
+// -------------------------------------------------------------
+// Direct HTTP Bridge for WT32-ETH01 hardware node
+// Allows ESP32 to POST raw pin pulses or JSON envelopes over LAN
+// -------------------------------------------------------------
+function startHttpBridge() {
+  const server = http.createServer((req, res) => {
+    // CORS headers for local LAN clients
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        status: 'ONLINE',
+        mode: GATEWAY_MODE,
+        pilotLoom: PILOT_LOOM_ID,
+        liveLooms: Array.from(liveHardwareLooms),
+        cachedLooms: telemetryCache.looms.size
+      }));
+      return;
+    }
+
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', async () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const machineId = payload.machineId || PILOT_LOOM_ID;
+
+          // Register machine as active live hardware node
+          liveHardwareLooms.add(machineId);
+          console.log(`📡 [HARDWARE INGEST] Live packet received for ${machineId} (Mode: ${GATEWAY_MODE})`);
+
+          const existingDev = mockLoomDevices.get(machineId);
+          if (existingDev) {
+            existingDev.isLiveHardware = true;
+            if (payload.pins) {
+              const isRunning = Boolean(payload.pins.piStrt === 1 || payload.pins.piStrt === true);
+              existingDev.state = isRunning ? 'RUNNING' : 'STOPPED';
+              if (!isRunning) {
+                if (payload.pins.piFd) existingDev.stopCategory = 'FILLING';
+                else if (payload.pins.piWd) existingDev.stopCategory = 'WARP';
+                else if (payload.pins.piLd) existingDev.stopCategory = 'SELVEDGE';
+                else existingDev.stopCategory = 'OTHER';
+                existingDev.rpm = 0;
+              } else {
+                existingDev.stopCategory = null;
+                existingDev.rpm = payload.rpm || existingDev.setRpm;
+              }
+              if (payload.picksDelta) {
+                existingDev.minutePicksAccumulator += Number(payload.picksDelta);
+                existingDev.totalPicks += Number(payload.picksDelta);
+              }
+            } else if (payload.state) {
+              existingDev.state = payload.state;
+              existingDev.stopCategory = payload.stopCategory || null;
+              existingDev.rpm = payload.rpm ?? (payload.state === 'RUNNING' ? existingDev.setRpm : 0);
+            }
+            updateLoomCache({ ...existingDev });
+          }
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, machineId, mode: GATEWAY_MODE }));
+        } catch (err: any) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      });
+      return;
+    }
+
+    res.writeHead(404);
+    res.end();
+  });
+
+  server.listen(HTTP_PORT, '0.0.0.0', () => {
+    console.log(`🔌 WT32-ETH01 LAN Bridge listening on http://0.0.0.0:${HTTP_PORT} (Mode: ${GATEWAY_MODE})`);
+  });
+}
+
 async function dispatchLoop() {
   let tick = 0;
   setInterval(async () => {
     tick++;
     const now = new Date().toISOString();
 
+    // Determine looms to dispatch according to GATEWAY_MODE
+    const allCached = Array.from(telemetryCache.looms.values());
+    let activeLoomsToDispatch: LoomDeviceState[] = [];
+
+    if (GATEWAY_MODE === 'SIM') {
+      activeLoomsToDispatch = allCached;
+    } else if (GATEWAY_MODE === 'HYBRID') {
+      // In HYBRID: dispatch all 36 (live hardware loom + 35 simulated looms)
+      activeLoomsToDispatch = allCached;
+    } else if (GATEWAY_MODE === 'LIVE') {
+      // In LIVE: only dispatch real hardware nodes
+      activeLoomsToDispatch = allCached.filter(dev => liveHardwareLooms.has(dev.machineId));
+    }
+
     if (!supabase) {
       if (tick % 5 === 0) {
-        console.log(`[DRY RUN] ${now} - Aggregated ${telemetryCache.looms.size} canonical machines.`);
+        console.log(`[DRY RUN] ${now} [Mode: ${GATEWAY_MODE}] Aggregated ${activeLoomsToDispatch.length} machines. Live Hardware: [${Array.from(liveHardwareLooms).join(', ')}]`);
       }
       return;
     }
 
     try {
       // 1. Dispatch State Updates every 1 second
-      const stateUpdates = Array.from(telemetryCache.looms.values()).map(dev => ({
+      const stateUpdates = activeLoomsToDispatch.map(dev => ({
         machine_id: dev.machineId,
         state: dev.state,
         stop_category: dev.stopCategory,
@@ -152,7 +265,7 @@ async function dispatchLoop() {
 
       // 2. Dispatch 1-Minute Counters every 60 seconds
       if (tick % 60 === 0) {
-        const counterEnvelopes = Array.from(mockLoomDevices.values()).map(generateMinuteCounter);
+        const counterEnvelopes = activeLoomsToDispatch.map(dev => generateMinuteCounter(dev));
         const counterRows = counterEnvelopes.map(e => ({
           machine_id: e.machineId,
           window_start: e.data.windowStart,
@@ -199,16 +312,18 @@ async function dispatchLoop() {
           gateway_id: 'AHI-GW-01',
           last_seen_at: now,
           status: 'ONLINE',
-          connected_devices: 36,
+          connected_devices: activeLoomsToDispatch.length,
           metadata: {
             uptimeSeconds: tick,
-            activeLooms: Array.from(telemetryCache.looms.values()).filter(l => l.state === 'RUNNING').length
+            mode: GATEWAY_MODE,
+            activeLooms: activeLoomsToDispatch.filter(l => l.state === 'RUNNING').length,
+            liveHardwareLooms: Array.from(liveHardwareLooms)
           }
         }, { onConflict: 'gateway_id' });
       }
 
       if (tick % 10 === 0) {
-        console.log(`[DISPATCH] Successfully dispatched live factory state at ${now}`);
+        console.log(`[DISPATCH] Mode: ${GATEWAY_MODE} | Live states updated for ${stateUpdates.length} looms (${liveHardwareLooms.size} hardware live).`);
       }
 
     } catch (err: any) {
@@ -218,8 +333,10 @@ async function dispatchLoop() {
 }
 
 async function main() {
-  console.log('🚀 Starting WeaveSync SCADA Edge Gateway (Ali Haider Industries - Data Contract v1)...');
+  console.log(`🚀 Starting WeaveSync SCADA Edge Gateway (Ali Haider Industries - Data Contract v1)...`);
+  console.log(`⚙️ GATEWAY_MODE: ${GATEWAY_MODE} | PILOT_LOOM_ID: ${PILOT_LOOM_ID}`);
   startDeviceDrivers();
+  startHttpBridge();
   dispatchLoop();
 }
 

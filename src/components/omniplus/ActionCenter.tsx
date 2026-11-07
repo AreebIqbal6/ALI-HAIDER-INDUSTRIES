@@ -11,7 +11,7 @@ import {
   Send
 } from 'lucide-react';
 import { useTelemetry } from '../../contexts/TelemetryContext';
-import { StopCategory } from '../../types';
+import { StopCategory, OperatorReasonCode, OPERATOR_REASON_LABELS } from '../../types';
 import toast from 'react-hot-toast';
 
 interface ActionCenterProps {
@@ -31,7 +31,13 @@ interface EventLog {
 }
 
 export const ActionCenter: React.FC<ActionCenterProps> = ({ machineId, loomNumber }) => {
-  const { looms, selectedMachineId, acknowledgeStop, dispatchTechnician } = useTelemetry();
+  const { 
+    looms, 
+    selectedMachineId, 
+    acknowledgeStop, 
+    dispatchTechnician,
+    assignLongStopReason 
+  } = useTelemetry();
   const effectiveId = machineId || (selectedMachineId !== 'GLOBAL' ? selectedMachineId : 'PIC-427708');
   const loom = looms[effectiveId] || Object.values(looms).find(l => l.loomNumber === loomNumber) || null;
   const targetMachineId = loom?.machineId || effectiveId;
@@ -41,6 +47,23 @@ export const ActionCenter: React.FC<ActionCenterProps> = ({ machineId, loomNumbe
   const [showDispatchModal, setShowDispatchModal] = useState(false);
   const [selectedTechnician, setSelectedTechnician] = useState('Akram Khan (Shift Lead)');
   const [notesText, setNotesText] = useState('');
+  const [declaringCode, setDeclaringCode] = useState<OperatorReasonCode | null>(null);
+
+  const handleQuickDeclare = async (code: OperatorReasonCode) => {
+    if (!loom) return;
+    setDeclaringCode(code);
+    try {
+      await assignLongStopReason(
+        loom.machineId,
+        loom.stopId || `stop-${loom.machineId}`,
+        code,
+        `Quick one-click declaration from Action Center`,
+        'Floor Supervisor'
+      );
+    } finally {
+      setDeclaringCode(null);
+    }
+  };
 
   // Sample operational logbook entries
   const [events, setEvents] = useState<EventLog[]>([
@@ -155,6 +178,42 @@ export const ActionCenter: React.FC<ActionCenterProps> = ({ machineId, loomNumbe
             <Download size={13} />
             <span>Shift CSV</span>
           </button>
+        </div>
+      </div>
+
+      {/* One-Click Long-Stop Operator Reason Declaration (Section 10.4) */}
+      <div className="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs sm:text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+            <Wrench size={16} className="text-blue-600" />
+            <span>One-Click Long-Stop Reason Declaration (Section 10.4)</span>
+          </h3>
+          <span className="text-[10px] font-mono text-slate-400">Strictly Read-Only SCADA</span>
+        </div>
+        <p className="text-[11px] text-slate-500">
+          When a stoppage extends past 5 minutes, assign the certified ISO downtime cause code:
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+          {(['ART', 'KNT', 'ELE', 'MEC', 'BST', 'DOF', 'OLS'] as OperatorReasonCode[]).map(code => {
+            const isCurrent = loom?.operatorReasonCode === code;
+            return (
+              <button
+                key={code}
+                disabled={declaringCode !== null}
+                onClick={() => handleQuickDeclare(code)}
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                  isCurrent
+                    ? 'bg-amber-100 border-amber-400 text-amber-950 font-black ring-2 ring-amber-300'
+                    : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800'
+                }`}
+              >
+                <div className="font-mono text-xs font-black">[{code}]</div>
+                <div className="text-[10px] text-slate-500 truncate leading-tight mt-0.5">
+                  {OPERATOR_REASON_LABELS[code]}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 

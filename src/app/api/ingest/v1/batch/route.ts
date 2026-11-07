@@ -35,10 +35,91 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     
-    // Extract envelope list from array or wrapper object
-    const rawEnvelopes: CanonicalEnvelope<any>[] = Array.isArray(body) 
-      ? body 
-      : (Array.isArray(body?.batch) ? body.batch : (Array.isArray(body?.envelopes) ? body.envelopes : []));
+    // Extract envelope list from array, wrapper object, or raw hardware node frame
+    let rawEnvelopes: CanonicalEnvelope<any>[] = [];
+
+    if (Array.isArray(body)) {
+      rawEnvelopes = body;
+    } else if (Array.isArray(body?.batch)) {
+      rawEnvelopes = body.batch;
+    } else if (Array.isArray(body?.envelopes)) {
+      rawEnvelopes = body.envelopes;
+    } else if (body && typeof body === 'object') {
+      // Direct raw pin frame from WT32-ETH01 over Ethernet LAN
+      if (body.pins || body.rawPins) {
+        const pins = body.pins || body.rawPins;
+        const machineId = body.machineId || 'PIC-427708';
+        const isRunning = Boolean(pins.piStrt === 1 || pins.piStrt === true);
+        const now = body.ts || new Date().toISOString();
+        
+        let detectedCategory: 'WARP' | 'FILLING' | 'SELVEDGE' | 'OTHER' | null = null;
+        if (!isRunning) {
+          // Priority order: FILLING > WARP > SELVEDGE > OTHER
+          if (pins.piFd) detectedCategory = 'FILLING';
+          else if (pins.piWd) detectedCategory = 'WARP';
+          else if (pins.piLd) detectedCategory = 'SELVEDGE';
+          else detectedCategory = 'OTHER';
+        }
+
+        const stateEnvelope: CanonicalEnvelope<LoomStateData> = {
+          schema: 'ahi.loom.state/1.0',
+          msgId: body.msgId || `wt32-state-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          seq: Number(body.seq || 1),
+          machineId,
+          gatewayId: body.gatewayId || 'AHI-GW-01',
+          source: 'SENSOR_KIT',
+          deviceId: body.deviceId || 'WT32-ETH01-PILOT',
+          ts: now,
+          tsQuality: 'SYNCED',
+          replayed: false,
+          data: {
+            state: isRunning ? 'RUNNING' : 'STOPPED',
+            stopCategory: detectedCategory,
+            stopId: isRunning ? null : (body.stopId || `stop-${Date.now()}`),
+            since: body.since || now,
+            rpm: isRunning ? Number(body.rpm || 874) : 0
+          }
+        };
+
+        rawEnvelopes.push(stateEnvelope);
+
+        // If counter increment or window provided
+        if (body.counters || body.picksDelta !== undefined) {
+          const counterEnvelope: CanonicalEnvelope<LoomCountersData> = {
+            schema: 'ahi.loom.counters/1.0',
+            msgId: `wt32-cnt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            seq: Number(body.seq || 1) + 1,
+            machineId,
+            gatewayId: body.gatewayId || 'AHI-GW-01',
+            source: 'SENSOR_KIT',
+            deviceId: body.deviceId || 'WT32-ETH01-PILOT',
+            ts: now,
+            tsQuality: 'SYNCED',
+            replayed: false,
+            data: {
+              windowStart: body.windowStart || new Date(Date.now() - 60000).toISOString(),
+              windowEnd: now,
+              picksDelta: Number(body.picksDelta || 0),
+              picksTotal: Number(body.picksTotal || 1540000),
+              runMs: isRunning ? 60000 : 0,
+              stopMs: isRunning ? 0 : 60000,
+              offlineMs: 0,
+              stops: {
+                WARP: detectedCategory === 'WARP' ? 1 : 0,
+                FILLING: detectedCategory === 'FILLING' ? 1 : 0,
+                SELVEDGE: detectedCategory === 'SELVEDGE' ? 1 : 0,
+                OTHER: detectedCategory === 'OTHER' ? 1 : 0,
+              },
+              rpmAvgRunning: isRunning ? Number(body.rpm || 874) : 0
+            }
+          };
+          rawEnvelopes.push(counterEnvelope);
+        }
+      } else if (body.schema) {
+        // Single canonical envelope
+        rawEnvelopes = [body];
+      }
+    }
 
     if (!rawEnvelopes || rawEnvelopes.length === 0) {
       return NextResponse.json(

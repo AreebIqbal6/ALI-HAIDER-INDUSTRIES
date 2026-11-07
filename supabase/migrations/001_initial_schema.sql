@@ -155,49 +155,50 @@ CREATE POLICY "Allow all on ambient" ON factory_ambient_telemetry FOR ALL USING 
 CREATE POLICY "Allow all on solar" ON solar_live_telemetry FOR ALL USING (true) WITH CHECK (true);
 
 -- 9. SEED THE REAL 36 PICANOL LOOMS AT ALI HAIDER INDUSTRIES
+-- Loom 1 is the Pilot Hardware Node (WT32-ETH01 + PC817 tapping XP_CBMP_P9)
 INSERT INTO looms (loom_number, machine_id, family, year_recorded, sources, set_rpm, weft_density_picks_per_cm, ip_address, status)
 VALUES
-  -- 2x OmniPlus Summum (2012/2015)
-  (1, 'PIC-332235', 'OmniPlus Summum', '11/2012', ARRAY['LDL', 'BICOM_ETH'], 850, 27.2, '192.168.10.101', 'RUNNING'),
-  (2, 'PIC-315816', 'OmniPlus Summum', '05/2015', ARRAY['LDL', 'BICOM_ETH'], 850, 27.2, '192.168.10.102', 'RUNNING'),
+  -- 25x OmniPlus-i (07-08/2021) -> Looms 1 to 25 (Loom 1 = PIC-427708 PILOT NODE)
+  (1,  'PIC-427708', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.101', 'RUNNING'),
+  (2,  'PIC-427709', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.102', 'RUNNING'),
+  (3,  'PIC-427710', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.103', 'RUNNING'),
+  (4,  'PIC-427711', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.104', 'STOPPED'),
+  (5,  'PIC-427712', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.105', 'RUNNING'),
+  (6,  'PIC-427713', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.106', 'RUNNING'),
+  (7,  'PIC-427714', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.107', 'RUNNING'),
+  (8,  'PIC-427715', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.108', 'RUNNING'),
+  (9,  'PIC-427716', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.109', 'STOPPED'),
+  (10, 'PIC-427717', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.110', 'RUNNING'),
+  (11, 'PIC-427718', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.111', 'RUNNING'),
+  (12, 'PIC-427719', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.112', 'RUNNING'),
+  (13, 'PIC-427720', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.113', 'RUNNING'),
+  (14, 'PIC-427721', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.114', 'RUNNING'),
+  (15, 'PIC-427722', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.115', 'RUNNING'),
+  (16, 'PIC-427723', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.116', 'RUNNING'),
+  (17, 'PIC-427724', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.117', 'STOPPED'),
+  (18, 'PIC-427725', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.118', 'RUNNING'),
+  (19, 'PIC-427726', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.119', 'RUNNING'),
+  (20, 'PIC-427727', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.120', 'RUNNING'),
+  (21, 'PIC-427728', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.121', 'RUNNING'),
+  (22, 'PIC-427729', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.122', 'RUNNING'),
+  (23, 'PIC-427730', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.123', 'RUNNING'),
+  (24, 'PIC-427731', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.124', 'RUNNING'),
+  (25, 'PIC-427732', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.125', 'RUNNING'),
 
-  -- 25x OmniPlus-i (07-08/2021)
-  (3,  'PIC-427708', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.103', 'RUNNING'),
-  (4,  'PIC-427709', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.104', 'STOPPED'),
-  (5,  'PIC-427710', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.105', 'RUNNING'),
-  (6,  'PIC-427711', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.106', 'RUNNING'),
-  (7,  'PIC-427712', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.107', 'RUNNING'),
-  (8,  'PIC-427713', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.108', 'RUNNING'),
-  (9,  'PIC-427714', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.109', 'RUNNING'),
-  (10, 'PIC-427715', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.110', 'RUNNING'),
-  (11, 'PIC-427716', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.111', 'STOPPED'),
-  (12, 'PIC-427717', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.112', 'RUNNING'),
-  (13, 'PIC-427718', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.113', 'RUNNING'),
-  (14, 'PIC-427719', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.114', 'RUNNING'),
-  (15, 'PIC-427720', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.115', 'RUNNING'),
-  (16, 'PIC-427721', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.116', 'RUNNING'),
-  (17, 'PIC-427722', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.117', 'RUNNING'),
-  (18, 'PIC-427723', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.118', 'RUNNING'),
-  (19, 'PIC-427724', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.119', 'STOPPED'),
-  (20, 'PIC-427725', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.120', 'RUNNING'),
-  (21, 'PIC-427726', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.121', 'RUNNING'),
-  (22, 'PIC-427727', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.122', 'RUNNING'),
-  (23, 'PIC-427728', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.123', 'RUNNING'),
-  (24, 'PIC-427729', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.124', 'RUNNING'),
-  (25, 'PIC-427730', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.125', 'RUNNING'),
-  (26, 'PIC-427731', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.126', 'RUNNING'),
-  (27, 'PIC-427732', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.127', 'RUNNING'),
+  -- 9x OmniPlus 800 (09/2005-02/2006) -> Looms 26 to 34
+  (26, 'PIC-279327', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.126', 'RUNNING'),
+  (27, 'PIC-278863', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.127', 'STOPPED'),
+  (28, 'PIC-279323', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.128', 'RUNNING'),
+  (29, 'PIC-279105', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.129', 'RUNNING'),
+  (30, 'PIC-279099', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.130', 'RUNNING'),
+  (31, 'PIC-281560', 'OmniPlus 800', '02/2006', ARRAY['LDL'], 501, 38.2, '192.168.20.131', 'RUNNING'),
+  (32, 'PIC-281554', 'OmniPlus 800', '02/2006', ARRAY['LDL'], 501, 38.2, '192.168.20.132', 'STOPPED'),
+  (33, 'PIC-281553', 'OmniPlus 800', '02/2006', ARRAY['LDL'], 501, 38.2, '192.168.20.133', 'RUNNING'),
+  (34, 'PIC-281481', 'OmniPlus 800', '02/2006', ARRAY['LDL'], 501, 38.2, '192.168.20.134', 'RUNNING'),
 
-  -- 9x OmniPlus 800 (09/2005-02/2006)
-  (28, 'PIC-279327', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.128', 'RUNNING'),
-  (29, 'PIC-278863', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.129', 'STOPPED'),
-  (30, 'PIC-279323', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.130', 'RUNNING'),
-  (31, 'PIC-279105', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.131', 'RUNNING'),
-  (32, 'PIC-279099', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.132', 'RUNNING'),
-  (33, 'PIC-281560', 'OmniPlus 800', '02/2006', ARRAY['LDL'], 501, 38.2, '192.168.20.133', 'RUNNING'),
-  (34, 'PIC-281554', 'OmniPlus 800', '02/2006', ARRAY['LDL'], 501, 38.2, '192.168.20.134', 'STOPPED'),
-  (35, 'PIC-281553', 'OmniPlus 800', '02/2006', ARRAY['LDL'], 501, 38.2, '192.168.20.135', 'RUNNING'),
-  (36, 'PIC-281481', 'OmniPlus 800', '02/2006', ARRAY['LDL'], 501, 38.2, '192.168.20.136', 'RUNNING')
+  -- 2x OmniPlus Summum (11/2012 & 05/2015) -> Looms 35 to 36
+  (35, 'PIC-332235', 'OmniPlus Summum', '11/2012', ARRAY['LDL', 'BICOM_ETH'], 850, 27.2, '192.168.10.135', 'RUNNING'),
+  (36, 'PIC-315816', 'OmniPlus Summum', '05/2015', ARRAY['LDL', 'BICOM_ETH'], 850, 27.2, '192.168.10.136', 'RUNNING')
 ON CONFLICT (machine_id) DO UPDATE 
 SET 
   loom_number = EXCLUDED.loom_number, 

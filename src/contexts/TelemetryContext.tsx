@@ -15,54 +15,56 @@ import {
   AmbientTelemetryState,
   SolarTelemetryState,
   GatewayHealthData,
-  TelemetryContextType
+  TelemetryContextType,
+  HardwareDiagnostics
 } from '../types';
 
 const TelemetryContext = createContext<TelemetryContextType | undefined>(undefined);
 
 // 36 Official Machines at Ali Haider Industries (Section 10.1)
+// Loom 1 is the Pilot Hardware Node (WT32-ETH01 + PC817 tapping XP_CBMP_P9)
 export const OFFICIAL_FLEET_DEFINITIONS = [
-  // 2x OmniPlus Summum (11/2012 & 05/2015)
-  { loomNumber: 1, machineId: 'PIC-332235', family: 'OmniPlus Summum' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 850, weftDensity: 27.2, ip: '192.168.10.101' },
-  { loomNumber: 2, machineId: 'PIC-315816', family: 'OmniPlus Summum' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 850, weftDensity: 27.2, ip: '192.168.10.102' },
+  // 25x OmniPlus-i (07-08/2021) -> Looms 1 to 25 (Loom 1 = PIC-427708 PILOT NODE)
+  { loomNumber: 1,  machineId: 'PIC-427708', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.101', isPilot: true },
+  { loomNumber: 2,  machineId: 'PIC-427709', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.102' },
+  { loomNumber: 3,  machineId: 'PIC-427710', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.103' },
+  { loomNumber: 4,  machineId: 'PIC-427711', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.104' },
+  { loomNumber: 5,  machineId: 'PIC-427712', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.105' },
+  { loomNumber: 6,  machineId: 'PIC-427713', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.106' },
+  { loomNumber: 7,  machineId: 'PIC-427714', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.107' },
+  { loomNumber: 8,  machineId: 'PIC-427715', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.108' },
+  { loomNumber: 9,  machineId: 'PIC-427716', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.109' },
+  { loomNumber: 10, machineId: 'PIC-427717', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.110' },
+  { loomNumber: 11, machineId: 'PIC-427718', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.111' },
+  { loomNumber: 12, machineId: 'PIC-427719', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.112' },
+  { loomNumber: 13, machineId: 'PIC-427720', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.113' },
+  { loomNumber: 14, machineId: 'PIC-427721', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.114' },
+  { loomNumber: 15, machineId: 'PIC-427722', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.115' },
+  { loomNumber: 16, machineId: 'PIC-427723', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.116' },
+  { loomNumber: 17, machineId: 'PIC-427724', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.117' },
+  { loomNumber: 18, machineId: 'PIC-427725', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.118' },
+  { loomNumber: 19, machineId: 'PIC-427726', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.119' },
+  { loomNumber: 20, machineId: 'PIC-427727', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.120' },
+  { loomNumber: 21, machineId: 'PIC-427728', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.121' },
+  { loomNumber: 22, machineId: 'PIC-427729', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.122' },
+  { loomNumber: 23, machineId: 'PIC-427730', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.123' },
+  { loomNumber: 24, machineId: 'PIC-427731', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.124' },
+  { loomNumber: 25, machineId: 'PIC-427732', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.125' },
 
-  // 25x OmniPlus-i (07-08/2021): PIC-427708 to PIC-427732
-  { loomNumber: 3,  machineId: 'PIC-427708', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.103' },
-  { loomNumber: 4,  machineId: 'PIC-427709', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.104' },
-  { loomNumber: 5,  machineId: 'PIC-427710', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.105' },
-  { loomNumber: 6,  machineId: 'PIC-427711', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.106' },
-  { loomNumber: 7,  machineId: 'PIC-427712', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.107' },
-  { loomNumber: 8,  machineId: 'PIC-427713', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.108' },
-  { loomNumber: 9,  machineId: 'PIC-427714', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.109' },
-  { loomNumber: 10, machineId: 'PIC-427715', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.110' },
-  { loomNumber: 11, machineId: 'PIC-427716', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.111' },
-  { loomNumber: 12, machineId: 'PIC-427717', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.112' },
-  { loomNumber: 13, machineId: 'PIC-427718', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.113' },
-  { loomNumber: 14, machineId: 'PIC-427719', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.114' },
-  { loomNumber: 15, machineId: 'PIC-427720', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.115' },
-  { loomNumber: 16, machineId: 'PIC-427721', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.116' },
-  { loomNumber: 17, machineId: 'PIC-427722', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.117' },
-  { loomNumber: 18, machineId: 'PIC-427723', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.118' },
-  { loomNumber: 19, machineId: 'PIC-427724', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.119' },
-  { loomNumber: 20, machineId: 'PIC-427725', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.120' },
-  { loomNumber: 21, machineId: 'PIC-427726', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.121' },
-  { loomNumber: 22, machineId: 'PIC-427727', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.122' },
-  { loomNumber: 23, machineId: 'PIC-427728', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.123' },
-  { loomNumber: 24, machineId: 'PIC-427729', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.124' },
-  { loomNumber: 25, machineId: 'PIC-427730', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.125' },
-  { loomNumber: 26, machineId: 'PIC-427731', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.126' },
-  { loomNumber: 27, machineId: 'PIC-427732', family: 'OmniPlus-i' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 874, weftDensity: 27.2, ip: '192.168.10.127' },
+  // 9x OmniPlus 800 (09/2005–02/2006) -> Looms 26 to 34
+  { loomNumber: 26, machineId: 'PIC-279327', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.126' },
+  { loomNumber: 27, machineId: 'PIC-278863', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.127' },
+  { loomNumber: 28, machineId: 'PIC-279323', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.128' },
+  { loomNumber: 29, machineId: 'PIC-279105', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.129' },
+  { loomNumber: 30, machineId: 'PIC-279099', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.130' },
+  { loomNumber: 31, machineId: 'PIC-281560', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.131' },
+  { loomNumber: 32, machineId: 'PIC-281554', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.132' },
+  { loomNumber: 33, machineId: 'PIC-281553', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.133' },
+  { loomNumber: 34, machineId: 'PIC-281481', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.134' },
 
-  // 9x OmniPlus 800 (09/2005–02/2006)
-  { loomNumber: 28, machineId: 'PIC-279327', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.128' },
-  { loomNumber: 29, machineId: 'PIC-278863', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.129' },
-  { loomNumber: 30, machineId: 'PIC-279323', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.130' },
-  { loomNumber: 31, machineId: 'PIC-279105', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.131' },
-  { loomNumber: 32, machineId: 'PIC-279099', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.132' },
-  { loomNumber: 33, machineId: 'PIC-281560', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.133' },
-  { loomNumber: 34, machineId: 'PIC-281554', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.134' },
-  { loomNumber: 35, machineId: 'PIC-281553', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.135' },
-  { loomNumber: 36, machineId: 'PIC-281481', family: 'OmniPlus 800' as LoomFamily, sources: ['LDL'] as SourceKind[], setRpm: 501, weftDensity: 38.2, ip: '192.168.20.136' },
+  // 2x OmniPlus Summum (11/2012 & 05/2015) -> Looms 35 to 36
+  { loomNumber: 35, machineId: 'PIC-332235', family: 'OmniPlus Summum' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 850, weftDensity: 27.2, ip: '192.168.10.135' },
+  { loomNumber: 36, machineId: 'PIC-315816', family: 'OmniPlus Summum' as LoomFamily, sources: ['LDL', 'BICOM_ETH'] as SourceKind[], setRpm: 850, weftDensity: 27.2, ip: '192.168.10.136' },
 ];
 
 export function getActiveShiftInfo(): ShiftInfo {
@@ -94,10 +96,51 @@ export function getActiveShiftInfo(): ShiftInfo {
   };
 }
 
+function createDefaultHardwareDiagnostics(isPilot: boolean, machineId: string, ip: string): HardwareDiagnostics {
+  return {
+    isPilotNode: isPilot,
+    firmwareVersion: 'AHI-WT32-v1.0.4',
+    lanPhyStatus: 'CONNECTED_100MBPS',
+    ipAddress: ip,
+    macAddress: `E0:E2:E6:${machineId.slice(-6).replace('-', ':')}`,
+    framBuffer: {
+      totalBytes: 65536,
+      usedBytes: 12480,
+      wearPct: 0.01,
+      recordsBuffered: 184,
+    },
+    outbox: {
+      pendingPackets: 0,
+      droppedPackets: 0,
+      inflight: false,
+      lastAckTs: new Date().toISOString(),
+      latencyMs: 12,
+    },
+    optocouplerPins: {
+      piStrt: true,
+      piPp: false,
+      piWd: false,
+      piFd: false,
+      piLd: false,
+      lastPulseTs: new Date().toISOString(),
+      classificationWindow: {
+        windowStartRelMs: -300,
+        windowEndRelMs: 1000,
+        detectedReason: 'WARP',
+        priorityOrder: ['FILLING', 'WARP', 'SELVEDGE', 'OTHER'],
+        confidence: 0.994,
+        isWithinWindow: false,
+      },
+    },
+  };
+}
+
 export function createInitialLoomState(def: typeof OFFICIAL_FLEET_DEFINITIONS[0]): LoomClientState {
-  // Baseline initial state (Loom 4, 11, 19, 29, 34 stopped)
-  const isStopped = [4, 11, 19, 29, 34].includes(def.loomNumber);
-  const isLongStop = def.loomNumber === 4 || def.loomNumber === 29; // Loom 4 & 29 are past 5 minutes
+  const isPilot = Boolean(def.machineId === 'PIC-427708' || def.loomNumber === 1);
+  // Baseline initial state (Loom 4, 11, 19, 27, 32 stopped for realistic matrix demo)
+  const isStopped = [4, 11, 19, 27, 32].includes(def.loomNumber);
+  const isLongStop = def.loomNumber === 4 || def.loomNumber === 27; // Loom 4 & 27 are past 5 minutes
+
   const stopSince = isLongStop 
     ? new Date(Date.now() - 380000).toISOString() // 6.3 minutes ago
     : isStopped 
@@ -124,6 +167,7 @@ export function createInitialLoomState(def: typeof OFFICIAL_FLEET_DEFINITIONS[0]
     setRpm: def.setRpm,
     weftDensityPicksPerCm: def.weftDensity,
     ipAddress: def.ip,
+    isPilotNode: isPilot,
     state: isStopped ? 'STOPPED' : 'RUNNING',
     stopCategory,
     stopId: isStopped ? `mock-stop-${def.machineId}` : null,
@@ -153,6 +197,7 @@ export function createInitialLoomState(def: typeof OFFICIAL_FLEET_DEFINITIONS[0]
       leftRelayBar: 5.6,
       rightRelayBar: 5.5,
     },
+    hardwareDiagnostics: createDefaultHardwareDiagnostics(isPilot, def.machineId, def.ip),
     isLongStop,
     longStopDeclared: false,
     operatorReasonCode: null,
@@ -163,7 +208,7 @@ export function createInitialLoomState(def: typeof OFFICIAL_FLEET_DEFINITIONS[0]
 }
 
 export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Initialize with the 36 Real Machines
+  // Initialize with all 36 Real Machines
   const [looms, setLooms] = useState<Record<string, LoomClientState>>(() => {
     const map: Record<string, LoomClientState> = {};
     OFFICIAL_FLEET_DEFINITIONS.forEach(def => {
@@ -175,6 +220,7 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [selectedMachineId, setSelectedMachineId] = useState<string | 'GLOBAL'>('GLOBAL');
   const [connectionStatus, setConnectionStatus] = useState<'CONNECTED_REALTIME' | 'OFFLINE_MOCK_FALLBACK' | 'CONNECTING'>('CONNECTING');
   const [mockMode, setMockMode] = useState<boolean>(true);
+  const [demoMode, setDemoModeState] = useState<'CLOUD' | 'LOCAL'>('LOCAL');
 
   const [ambient, setAmbient] = useState<AmbientTelemetryState>({
     mainAirPressureBar: 7.35,
@@ -314,7 +360,6 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
 
     try {
-      // Call Next.js declaration endpoint
       await fetch('/api/operator/declare-stop', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -353,7 +398,105 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     toast.success(`Technician ${technicianName} dispatched to ${machineId}.`);
   }, []);
 
-  // Dynamic Machine Provisioning (Section 1: Demonstrates onboarding Looms 37, 38, 39 in 10s)
+  // Secret Weapon Pilot Demo Controls: Trigger Simulated Stop on demand
+  const triggerSimulatedStop = useCallback(async (machineId: string, category: 'WARP' | 'FILLING' | 'SELVEDGE' | 'LONG_STOP') => {
+    const now = new Date();
+    const isLong = category === 'LONG_STOP';
+    const chosenCat: StopCategory = isLong ? 'WARP' : category;
+    const sinceDate = isLong ? new Date(now.getTime() - 360000) : now; // 6 mins ago for LONG_STOP
+
+    setLooms(prev => {
+      const current = prev[machineId];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [machineId]: {
+          ...current,
+          state: 'STOPPED',
+          stopCategory: chosenCat,
+          stopId: `demo-stop-${Date.now()}`,
+          since: sinceDate.toISOString(),
+          rpm: 0,
+          isLongStop: isLong,
+          longStopDeclared: false,
+          operatorReasonCode: null,
+          operatorReasonNote: null,
+          declaredBy: null,
+          hardwareDiagnostics: current.hardwareDiagnostics ? {
+            ...current.hardwareDiagnostics,
+            optocouplerPins: {
+              ...current.hardwareDiagnostics.optocouplerPins,
+              piStrt: false,
+              piWd: chosenCat === 'WARP',
+              piFd: chosenCat === 'FILLING',
+              piLd: chosenCat === 'SELVEDGE',
+              classificationWindow: {
+                ...current.hardwareDiagnostics.optocouplerPins.classificationWindow,
+                detectedReason: chosenCat,
+                isWithinWindow: true
+              }
+            }
+          } : undefined,
+          lastUpdated: now.toISOString()
+        }
+      };
+    });
+
+    toast.error(`🚨 PILOT TRIGGER: Machine ${machineId} STOPPED (${category === 'LONG_STOP' ? '>5m Long Stop' : category})!`, { duration: 4000 });
+  }, []);
+
+  // Clear simulated stop on demand
+  const clearSimulatedStop = useCallback(async (machineId: string) => {
+    setLooms(prev => {
+      const current = prev[machineId];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [machineId]: {
+          ...current,
+          state: 'RUNNING',
+          stopCategory: null,
+          stopId: null,
+          since: new Date().toISOString(),
+          rpm: current.setRpm,
+          isLongStop: false,
+          longStopDeclared: false,
+          hardwareDiagnostics: current.hardwareDiagnostics ? {
+            ...current.hardwareDiagnostics,
+            optocouplerPins: {
+              ...current.hardwareDiagnostics.optocouplerPins,
+              piStrt: true,
+              piWd: false,
+              piFd: false,
+              piLd: false,
+              classificationWindow: {
+                ...current.hardwareDiagnostics.optocouplerPins.classificationWindow,
+                isWithinWindow: false
+              }
+            }
+          } : undefined,
+          lastUpdated: new Date().toISOString()
+        }
+      };
+    });
+    toast.success(`✅ PILOT TRIGGER: Machine ${machineId} resumed RUNNING at target RPM!`);
+  }, []);
+
+  // Demo Mode Switch (Cloud Supabase Realtime vs Local In-Memory Fallback)
+  const setDemoMode = useCallback((mode: 'CLOUD' | 'LOCAL') => {
+    setDemoModeState(mode);
+    if (mode === 'LOCAL') {
+      setConnectionStatus('OFFLINE_MOCK_FALLBACK');
+      setMockMode(true);
+      toast('Switched to Local Offline Simulator Mode', { icon: '⚡' });
+    } else {
+      setConnectionStatus('CONNECTING');
+      setMockMode(false);
+      toast('Connecting to Cloud Realtime...', { icon: '☁️' });
+    }
+  }, []);
+
+  // Dynamic Machine Provisioning (Section 1: Demonstrates onboarding Looms 37, 38, 39 in 5s)
   const addMachine = useCallback(async (
     machineId: string,
     loomNumber: number,
@@ -371,6 +514,7 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setRpm,
       weftDensity,
       ip: ipAddress || `192.168.10.${100 + loomNumber}`,
+      isPilot: false
     };
 
     const newClientState = createInitialLoomState(newLoomDef);
@@ -384,21 +528,23 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return machineId;
   }, []);
 
-  // TOP-LEVEL SINGLE WEBSOCKET SUBSCRIPTION + 3-SECOND OFFLINE FALLBACK
+  // TOP-LEVEL SINGLE WEBSOCKET SUBSCRIPTION + 2.5-SECOND OFFLINE FALLBACK RULE
   useEffect(() => {
     let isMounted = true;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
+    // Strict 2.5s timeout: if unreachable within 2500ms, seamlessly fallback with zero stuck spinners
     connectionTimeoutRef.current = setTimeout(() => {
       if (connectionStatus === 'CONNECTING') {
-        console.warn('⏱️ Realtime connection timed out after 3000ms. Seamlessly falling back to Section 10 Offline Mock Simulation.');
+        console.warn('⏱️ Realtime connection timed out after 2500ms. Seamlessly falling back to Section 10 Offline Mock Simulation.');
         setConnectionStatus('OFFLINE_MOCK_FALLBACK');
         setMockMode(true);
+        setDemoModeState('LOCAL');
       }
-    }, 3000);
+    }, 2500);
 
     const initConnection = async () => {
-      if (!supabaseUrl || supabaseUrl === 'https://mock.supabase.co' || !supabaseUrl.includes('supabase.co')) {
+      if (demoMode === 'LOCAL' || !supabaseUrl || supabaseUrl === 'https://mock.supabase.co' || !supabaseUrl.includes('supabase.co')) {
         setConnectionStatus('OFFLINE_MOCK_FALLBACK');
         setMockMode(true);
         if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
@@ -451,10 +597,11 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
           setConnectionStatus('CONNECTED_REALTIME');
           setMockMode(false);
+          setDemoModeState('CLOUD');
           if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
         }
 
-        // Establish the single realtime channel
+        // Establish the single realtime channel (Single WebSocket rule)
         const channel = supabase.channel('weavesync_realtime_stream')
           .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'loom_live_state' }, (payload: any) => {
             const row = payload.new;
@@ -498,6 +645,7 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (status === 'SUBSCRIBED') {
               setConnectionStatus('CONNECTED_REALTIME');
               setMockMode(false);
+              setDemoModeState('CLOUD');
               if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
             }
           });
@@ -508,6 +656,7 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         console.warn('Realtime subscription unavailable; using client simulation loop:', err);
         setConnectionStatus('OFFLINE_MOCK_FALLBACK');
         setMockMode(true);
+        setDemoModeState('LOCAL');
         if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
       }
     };
@@ -519,9 +668,9 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
       if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
-  }, []);
+  }, [demoMode]);
 
-  // CLIENT-SIDE DETERMINISTIC SIMULATION & LONG-STOP DETECTOR (Runs for Offline Mock & UI Micro-Jitter)
+  // CLIENT-SIDE SIMULATION & LONG-STOP DETECTOR (Runs for Offline Mock & UI Micro-Jitter)
   useEffect(() => {
     const simulationInterval = setInterval(() => {
       setLooms(prev => {
@@ -543,7 +692,7 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
           }
 
-          // Tachometer micro-flutter for running machines
+          // Micro-flutter for running machines
           if (loom.state === 'RUNNING') {
             const jitter = Math.floor(Math.random() * 5) - 2;
             const newRpm = Math.max(0, loom.setRpm + jitter);
@@ -598,10 +747,14 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       gatewayHealth,
       connectionStatus,
       mockMode,
+      demoMode,
+      setDemoMode,
       assignLongStopReason,
       addMachine,
       acknowledgeStop,
       dispatchTechnician,
+      triggerSimulatedStop,
+      clearSimulatedStop,
     }}>
       {children}
     </TelemetryContext.Provider>
