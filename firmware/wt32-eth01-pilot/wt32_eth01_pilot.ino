@@ -8,11 +8,17 @@
  * ==============================================================================
  * 
  * Pinout Connections to PC817 Optocouplers (Galvanic Isolation 5kV):
- *   XP_CBMP_P9 Pin 9  -> PC817 IN1 -> ESP32 GPIO 4  (PI_STRT: Loom Running Status)
- *   XP_CBMP_P9 Pin 7  -> PC817 IN2 -> ESP32 GPIO 2  (PI_PP: Pick Pulse / Beat-up)
- *   XP_CBMP_P9 Pin 8  -> PC817 IN3 -> ESP32 GPIO 14 (PI_WD: Warp Stop Drop-wire)
- *   XP_CBMP_P9 Pin 10 -> PC817 IN4 -> ESP32 GPIO 15 (PI_FD: Filling Stop FD1/FD2)
- *   XP_CBMP_P9 Pin 6  -> PC817 IN5 -> ESP32 GPIO 32 (PI_LD: Selvedge Leno Stop)
+ *   XP_CBMP_P9 Pin 9  -> 1.8k Resistor -> PC817 IN1 (+) -> Output -> ESP32 GPIO 4  (PI_STRT: Loom Running Status)
+ *   XP_CBMP_P9 Pin 7  -> 1.8k Resistor -> PC817 IN2 (+) -> Output -> ESP32 GPIO 2  (PI_PP: Pick Pulse / Beat-up)
+ *   XP_CBMP_P9 Pin 8  -> 1.8k Resistor -> PC817 IN3 (+) -> Output -> ESP32 GPIO 14 (PI_WD: Warp Stop Drop-wire)
+ *   XP_CBMP_P9 Pin 10 -> 1.8k Resistor -> PC817 IN4 (+) -> Output -> ESP32 GPIO 15 (PI_FD: Filling Stop FD1/FD2)
+ *   XP_CBMP_P9 Pin 6  -> 1.8k Resistor -> PC817 IN5 (+) -> Output -> ESP32 GPIO 32 (PI_LD: Selvedge Leno Stop)
+ * 
+ * Common Returns & Jumpering (Verified against Picanol EPLAN Schematics 110123-110126):
+ *   XP_CBMP_P9 Pin 14 (PGD)    -> Connected to ALL PC817 Input Cathodes (-) as Common Return
+ *   XP_CBMP_P9 Pin 11 (SUP_PI) -> Jumpered to Pin 15 (26V) to power CBMP high-side drivers
+ *   XP_CBMP_P9 Pin 15 (26V)    -> Filtered 26V DC source (protected by CBMP Fuse F1)
+ *   DO NOT CONNECT PINS 1 or 2 -> Pins 1 & 2 are RS-422 differential TX lines (TX_BI_L/H)!
  */
 
 #include <Arduino.h>

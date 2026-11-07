@@ -22,21 +22,41 @@ Before heading to Ali Haider Industries (SITE Industrial Area, Karachi), verify 
 
 ---
 
-## 2. PICANOL `XP_CBMP_P9` WIRING PINOUT
+## 2. PICANOL `XP_CBMP_P9` WIRING PINOUT & ELECTRICAL VERIFICATION
 
-The `XP_CBMP_P9` interface on the Picanol control box delivers clean 24V DC logic pulses. Route each pin into the PC817 optocoupler inputs:
+> ⚠️ **CRITICAL ELECTRICAL CORRECTION (CROSSCHECKED AGAINST OFFICIAL PICANOL SCHEMATICS 110123-110126):**
+> - In early planning drafts, Pins 1 and 2 were mistakenly assumed to be "Common Ground".
+> - **DO NOT CONNECT GROUND TO PINS 1 OR 2!** In Picanol's official EPLAN schematic (Page 55 & 125), Pin 1 is `TX_BI_L` and Pin 2 is `TX_BI_H` (RS-422 differential serial transmit). Grounding them will short the RS-422 transceiver IC!
+> - The true common return ground for the parallel interface is **Pin 14 (`PGD`: Protective Ground / 0V Reference)**.
+> - Pin 11 is `SUP_PI` (Parallel Interface Supply). Pin 15 is `26V` (`CBMP_26VF`: Filtered 26V DC supply from fuse F1).
+
+### Verified DB-15 Male Tap Connector Pinout (`XP_CBMP_P9`):
 
 ```
-[ Picanol XP_CBMP_P9 ]          [ PC817 Optocoupler Board ]         [ WT32-ETH01 ]
-Pin 9  (PI_STRT: Run Status)  ---> Channel 1 Input (+) ---> Output ---> GPIO 4
-Pin 7  (PI_PP: Pick Pulse)    ---> Channel 2 Input (+) ---> Output ---> GPIO 2 (Interrupt)
-Pin 8  (PI_WD: Warp Stop)     ---> Channel 3 Input (+) ---> Output ---> GPIO 14
-Pin 10 (PI_FD: Filling Stop)  ---> Channel 4 Input (+) ---> Output ---> GPIO 15
-Pin 6  (PI_LD: Selvedge Leno) ---> Channel 5 Input (+) ---> Output ---> GPIO 32
-Pin 1/2 (COM GND)             ---> Optocoupler Common (-)
+========================================================================================
+[ Picanol XP_CBMP_P9 (DB-15) ]       [ PC817 Optocoupler Board ]       [ WT32-ETH01 ]
+========================================================================================
+Pin 9  (PI_STRT: Run Status)   ---> Channel 1 Input (+) ---> Output ---> GPIO 4
+Pin 7  (PI_PP: Pick Pulse)     ---> Channel 2 Input (+) ---> Output ---> GPIO 2 (Interrupt)
+Pin 8  (PI_WD: Warp Stop)      ---> Channel 3 Input (+) ---> Output ---> GPIO 14
+Pin 10 (PI_FD: Filling Stop)   ---> Channel 4 Input (+) ---> Output ---> GPIO 15
+Pin 6  (PI_LD: Selvedge Leno)  ---> Channel 5 Input (+) ---> Output ---> GPIO 32
+Pin 14 (PGD: Return Ground)    ---> All Optocoupler Inputs (-) [Common Ground Return]
+----------------------------------------------------------------------------------------
+Pin 11 (SUP_PI: Interface VCC) <--- Jumpered to Pin 15 (26V) to power high-side drivers
+Pin 15 (26V: Filtered 26V DC)  ---> Ties to Pin 11 (CBMP internal fuse protected)
+========================================================================================
+Pins 1, 2, 3, 4, 5: RS-422 Serial BICOM (TX_L, TX_H, GND_RS422, RX_L, RX_H) - LEAVE UNCONNECTED
+Pin 12: PI_RES (Reserved / Bobbin Brake) - LEAVE UNCONNECTED
+Pin 13: NC (Not Connected)
 ```
 
-> **SAFETY RULE:** The PC817 board provides 5,000 Vrms galvanic isolation. **NEVER** connect Picanol 24V pins directly to ESP32 3.3V GPIOs.
+> **RESISTOR SIZING WARNING (26V DC LOGIC):**
+> Standard PC817 optocoupler breakout modules are fitted with 1kΩ SMD resistors designed for 12V DC. At Picanol's 26V DC supply, forward current would reach ~24.8 mA with ~0.61W dissipation, which will overheat small 0805 SMD resistors!
+> **Mandatory:** Add an external **1.5 kΩ to 2.2 kΩ (0.5W)** resistor in series with each optocoupler input wire to keep LED current safely between 8 mA and 12 mA.
+
+> **SCHEMATIC DRAWING QUIRK NOTE (PAGE 55):**
+> On Page 55 of Picanol drawings `110123` through `110126`, the graphical text on Pin 8 inadvertently repeats the string `PI_PP`. However, the authoritative automated EPLAN Board Connector List on Page 125 confirms Pin 8 is **`PI_WD` (Warp Stop)** and Pin 7 is **`PI_PP` (Pick Pulse)**.
 
 ---
 
