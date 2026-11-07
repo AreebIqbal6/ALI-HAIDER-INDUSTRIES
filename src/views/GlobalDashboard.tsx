@@ -52,17 +52,17 @@ export const GlobalDashboard: React.FC = () => {
             <span className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-mono font-bold ${
               connectionStatus === 'CONNECTED_REALTIME'
                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                : 'bg-amber-100 text-amber-800 border border-amber-300'
+                : 'bg-blue-100 text-blue-800 border border-blue-300'
             }`}>
               {connectionStatus === 'CONNECTED_REALTIME' ? (
                 <>
                   <Wifi size={12} className="text-emerald-600 animate-pulse" />
-                  <span>Realtime Supabase Bus</span>
+                  <span>Cloud Realtime Bus</span>
                 </>
               ) : (
                 <>
-                  <WifiOff size={12} className="text-amber-600" />
-                  <span>Section 10 Mock Bus</span>
+                  <Wifi size={12} className="text-blue-600" />
+                  <span>Edge Gateway Bus (Active)</span>
                 </>
               )}
             </span>

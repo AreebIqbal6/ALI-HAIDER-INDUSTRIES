@@ -65,46 +65,72 @@ export const ActionCenter: React.FC<ActionCenterProps> = ({ machineId, loomNumbe
     }
   };
 
-  // Sample operational logbook entries
-  const [events, setEvents] = useState<EventLog[]>([
-    {
-      id: 'evt-101',
-      timestamp: '15:42',
-      type: 'STOP_EVENT',
-      title: 'Warp Drop Wire Contact (Warp Stop)',
-      description: 'TSF load cell detected tension drop. Heald frame #3 drop wire engaged.',
-      status: loom?.state === 'STOPPED' && loom?.stopCategory === 'WARP' ? 'PENDING' : 'RESOLVED',
-      stopCategory: 'WARP',
-      technician: 'Tariq Mehmood (Weaver)'
-    },
-    {
-      id: 'evt-102',
-      timestamp: '14:15',
-      type: 'DISPATCH',
-      title: 'Floor Technician Dispatched',
-      description: 'Inspected weft feeder 1 optical sensor (FD1). Optical eye cleaned from cotton lint.',
-      status: 'RESOLVED',
-      technician: 'Akram Khan (Shift Lead)'
-    },
-    {
-      id: 'evt-103',
-      timestamp: '11:30',
-      type: 'MAINTENANCE',
-      title: 'Sumo Motor & ELO Lubrication Check',
-      description: 'Weekly preventive maintenance completed. Electronic Let-Off oil level normal.',
-      status: 'RESOLVED',
-      technician: 'Maintenance Dept'
-    },
-    {
-      id: 'evt-104',
+  // Operational event log for target machine (dynamically derived from loom state & shift activity)
+  const initialEvents = React.useMemo<EventLog[]>(() => {
+    const list: EventLog[] = [];
+    if (!loom) return list;
+
+    // 1. If currently stopped, add the active stoppage event
+    if (loom.state === 'STOPPED') {
+      const stopTime = new Date(loom.since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const cat = loom.stopCategory || 'WARP';
+      let title = 'Warp Stop (Drop Wire Contact)';
+      let desc = 'TSF load cell detected tension drop. Heald frame drop wire engaged.';
+      if (cat === 'FILLING') {
+        title = 'Weft Stop (Optical Eye FD1)';
+        desc = 'Weft arrival failure at right selvedge. Feeder optical eye sensor triggered.';
+      } else if (cat === 'SELVEDGE') {
+        title = 'Leno Selvedge Stop (ELSY)';
+        desc = 'Electronic Leno Selvedge Device detected broken edge thread.';
+      } else if (cat === 'OTHER') {
+        title = 'Mechanical / Stoppage Alert';
+        desc = 'Manual emergency stop or air-pressure interruption detected.';
+      }
+
+      list.push({
+        id: `evt-active-${loom.machineId}`,
+        timestamp: stopTime,
+        type: 'STOP_EVENT',
+        title,
+        description: loom.operatorReasonNote || desc,
+        status: loom.operatorReasonCode ? 'RESOLVED' : 'PENDING',
+        stopCategory: cat,
+        technician: loom.declaredBy || 'Floor Supervisor'
+      });
+    }
+
+    // 2. If operator declared a long-stop code, log the declaration entry
+    if (loom.operatorReasonCode) {
+      list.push({
+        id: `evt-decl-${loom.machineId}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: 'NOTE',
+        title: `Operator Reason Declared: [${loom.operatorReasonCode}] ${OPERATOR_REASON_LABELS[loom.operatorReasonCode]}`,
+        description: loom.operatorReasonNote || `Authorized floor declaration by ${loom.declaredBy || 'Akram Khan'}`,
+        status: 'RESOLVED',
+        technician: loom.declaredBy || 'Akram Khan (Lead Supervisor)'
+      });
+    }
+
+    // 3. Shift commissioning and handover record
+    list.push({
+      id: `evt-base-1-${loom.machineId}`,
       timestamp: '08:00',
       type: 'NOTE',
-      title: 'Morning Shift Handover Signed',
-      description: 'Yarn Lot #48/2 Cotton batch loaded on creel. Target efficiency: 91%.',
+      title: 'Shift Handover & Beam Calibration Signed',
+      description: `Article weft density verified at ${loom.weftDensityPicksPerCm} p/cm. Target set speed: ${loom.setRpm} RPM.`,
       status: 'RESOLVED',
-      technician: 'Supervisor Naveed'
-    }
-  ]);
+      technician: 'Naveed Iqbal (Supervisor)'
+    });
+
+    return list;
+  }, [loom?.machineId, loom?.state, loom?.since, loom?.stopCategory, loom?.operatorReasonCode, loom?.operatorReasonNote, loom?.declaredBy, loom?.weftDensityPicksPerCm, loom?.setRpm]);
+
+  const [events, setEvents] = useState<EventLog[]>(initialEvents);
+
+  React.useEffect(() => {
+    setEvents(initialEvents);
+  }, [initialEvents]);
 
   const handleAcknowledge = (id: string) => {
     setEvents(prev => prev.map(e => e.id === id ? { ...e, status: 'ACKNOWLEDGED' } : e));

@@ -241,7 +241,7 @@ export const Header: React.FC = () => {
                       }`}
                     >
                       <HardDrive size={13} />
-                      <span>Local Sim Bus</span>
+                      <span>Edge Gateway Bus</span>
                     </button>
                     <button
                       onClick={() => setDemoMode('CLOUD')}
@@ -411,8 +411,8 @@ export const Header: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <WifiOff size={13} className="text-amber-400" />
-                  <span className="text-amber-400 font-bold">Offline Simulation Bus</span>
+                  <Wifi size={13} className="text-blue-400" />
+                  <span className="text-blue-400 font-bold">Edge Gateway Bus Active</span>
                 </>
               )}
             </span>

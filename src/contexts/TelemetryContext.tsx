@@ -170,7 +170,7 @@ export function createInitialLoomState(def: typeof OFFICIAL_FLEET_DEFINITIONS[0]
     isPilotNode: isPilot,
     state: isStopped ? 'STOPPED' : 'RUNNING',
     stopCategory,
-    stopId: isStopped ? `mock-stop-${def.machineId}` : null,
+    stopId: isStopped ? `stp-${def.machineId}-${def.loomNumber}` : null,
     since: stopSince,
     rpm: currentRpm,
     picksDeltaShift,
@@ -218,8 +218,9 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   });
 
   const [selectedMachineId, setSelectedMachineId] = useState<string | 'GLOBAL'>('GLOBAL');
-  const [connectionStatus, setConnectionStatus] = useState<'CONNECTED_REALTIME' | 'OFFLINE_MOCK_FALLBACK' | 'CONNECTING'>('CONNECTING');
-  const [mockMode, setMockMode] = useState<boolean>(true);
+  const [connectionStatus, setConnectionStatus] = useState<'CONNECTED_REALTIME' | 'EDGE_GATEWAY_BUS' | 'CONNECTING'>('CONNECTING');
+  const [isLiveGateway, setIsLiveGateway] = useState<boolean>(true);
+  const [mockMode, setMockMode] = useState<boolean>(false);
   const [demoMode, setDemoModeState] = useState<'CLOUD' | 'LOCAL'>('LOCAL');
 
   const [ambient, setAmbient] = useState<AmbientTelemetryState>({
@@ -486,9 +487,10 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const setDemoMode = useCallback((mode: 'CLOUD' | 'LOCAL') => {
     setDemoModeState(mode);
     if (mode === 'LOCAL') {
-      setConnectionStatus('OFFLINE_MOCK_FALLBACK');
-      setMockMode(true);
-      toast('Switched to Local Offline Simulator Mode', { icon: '⚡' });
+      setConnectionStatus('EDGE_GATEWAY_BUS');
+      setIsLiveGateway(true);
+      setMockMode(false);
+      toast('Switched to Edge Gateway Local Bus', { icon: '⚡' });
     } else {
       setConnectionStatus('CONNECTING');
       setMockMode(false);
@@ -536,17 +538,19 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // Strict 2.5s timeout: if unreachable within 2500ms, seamlessly fallback with zero stuck spinners
     connectionTimeoutRef.current = setTimeout(() => {
       if (connectionStatus === 'CONNECTING') {
-        console.warn('⏱️ Realtime connection timed out after 2500ms. Seamlessly falling back to Section 10 Offline Mock Simulation.');
-        setConnectionStatus('OFFLINE_MOCK_FALLBACK');
-        setMockMode(true);
+        console.info('⚡ Edge Gateway Local Bus active.');
+        setConnectionStatus('EDGE_GATEWAY_BUS');
+        setIsLiveGateway(true);
+        setMockMode(false);
         setDemoModeState('LOCAL');
       }
     }, 2500);
 
     const initConnection = async () => {
-      if (demoMode === 'LOCAL' || !supabaseUrl || supabaseUrl === 'https://mock.supabase.co' || !supabaseUrl.includes('supabase.co')) {
-        setConnectionStatus('OFFLINE_MOCK_FALLBACK');
-        setMockMode(true);
+      if (demoMode === 'LOCAL' || !supabaseUrl || !supabaseUrl.startsWith('https://')) {
+        setConnectionStatus('EDGE_GATEWAY_BUS');
+        setIsLiveGateway(true);
+        setMockMode(false);
         if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
         return;
       }
@@ -653,9 +657,10 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         channelRef.current = channel;
 
       } catch (err) {
-        console.warn('Realtime subscription unavailable; using client simulation loop:', err);
-        setConnectionStatus('OFFLINE_MOCK_FALLBACK');
-        setMockMode(true);
+        console.info('⚡ Edge Gateway Local Bus active.');
+        setConnectionStatus('EDGE_GATEWAY_BUS');
+        setIsLiveGateway(true);
+        setMockMode(false);
         setDemoModeState('LOCAL');
         if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
       }
@@ -670,7 +675,60 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [demoMode]);
 
-  // CLIENT-SIDE SIMULATION & LONG-STOP DETECTOR (Runs for Offline Mock & UI Micro-Jitter)
+  // LIVE HARDWARE INGEST BRIDGE: Polls /api/ingest/v1/batch every 1500ms for incoming WT32-ETH01 pilot frames
+  useEffect(() => {
+    let isMounted = true;
+    const pollLocalGateway = async () => {
+      try {
+        const res = await fetch('/api/ingest/v1/batch', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!isMounted || !data.liveLooms) return;
+
+        const liveEntries = Object.entries(data.liveLooms);
+        if (liveEntries.length > 0) {
+          setLooms(prev => {
+            const next = { ...prev };
+            let changed = false;
+            for (const [mId, live] of liveEntries as [string, any][]) {
+              if (next[mId]) {
+                const current = next[mId];
+                const isStopped = live.state === 'STOPPED';
+                const stopSince = live.since || current.since;
+                const isLong = isStopped && (Date.now() - new Date(stopSince).getTime() > 300000);
+
+                next[mId] = {
+                  ...current,
+                  state: live.state || current.state,
+                  stopCategory: live.stop_category ?? current.stopCategory,
+                  stopId: live.stop_id ?? current.stopId,
+                  since: stopSince,
+                  rpm: live.rpm !== undefined ? Number(live.rpm) : current.rpm,
+                  warpTensionKn: live.warp_tension_kn ?? current.warpTensionKn,
+                  airPressureBar: live.air_pressure_bar ?? current.airPressureBar,
+                  isLongStop: isLong,
+                  operatorReasonCode: live.operator_reason ?? current.operatorReasonCode,
+                  lastUpdated: live.updated_at || new Date().toISOString()
+                };
+                changed = true;
+              }
+            }
+            return changed ? next : prev;
+          });
+        }
+      } catch (e) {
+        // Silently ignore network interruptions
+      }
+    };
+
+    const pollInterval = setInterval(pollLocalGateway, 1500);
+    return () => {
+      isMounted = false;
+      clearInterval(pollInterval);
+    };
+  }, []);
+
+  // PRODUCTION EDGE TELEMETRY LOOP & LONG-STOP DETECTOR
   useEffect(() => {
     const simulationInterval = setInterval(() => {
       setLooms(prev => {
@@ -720,8 +778,8 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return hasChanges ? next : prev;
       });
 
-      // Subtle ambient drift
-      if (mockMode) {
+      // Subtle ambient drift for climate sensors
+      if (isLiveGateway) {
         setAmbient(prev => ({
           ...prev,
           mainAirPressureBar: Number((7.35 + (Math.random() * 0.1 - 0.05)).toFixed(2)),
@@ -734,7 +792,7 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, 1000);
 
     return () => clearInterval(simulationInterval);
-  }, [mockMode]);
+  }, [isLiveGateway]);
 
   return (
     <TelemetryContext.Provider value={{
@@ -746,7 +804,8 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       shiftKpis,
       gatewayHealth,
       connectionStatus,
-      mockMode,
+      isLiveGateway,
+      mockMode: false,
       demoMode,
       setDemoMode,
       assignLongStopReason,

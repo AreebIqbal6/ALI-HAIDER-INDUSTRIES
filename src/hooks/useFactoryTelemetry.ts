@@ -2,7 +2,7 @@
 import { useTelemetry } from '../contexts/TelemetryContext';
 
 export const useFactoryTelemetry = () => {
-  const { looms, ambient, solar, shiftKpis, gatewayHealth, connectionStatus, mockMode } = useTelemetry();
+  const { looms, ambient, solar, shiftKpis, gatewayHealth, connectionStatus, isLiveGateway, mockMode } = useTelemetry();
 
   const loomList = Object.values(looms);
 
@@ -23,7 +23,8 @@ export const useFactoryTelemetry = () => {
     gatewayHealth,
     solar,
     connectionStatus,
-    mockMode,
+    isLiveGateway,
+    mockMode: mockMode ?? false,
     loading: false,
     error: null,
   };

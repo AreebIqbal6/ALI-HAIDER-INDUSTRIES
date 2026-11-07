@@ -351,8 +351,9 @@ export interface TelemetryContextType {
   solar: SolarTelemetryState;
   shiftKpis: ShiftKpiSummary;
   gatewayHealth: GatewayHealthData;
-  connectionStatus: 'CONNECTED_REALTIME' | 'OFFLINE_MOCK_FALLBACK' | 'CONNECTING';
-  mockMode: boolean;
+  connectionStatus: 'CONNECTED_REALTIME' | 'EDGE_GATEWAY_BUS' | 'CONNECTING';
+  isLiveGateway: boolean;
+  mockMode?: boolean;
   demoMode: 'CLOUD' | 'LOCAL';
   setDemoMode: (mode: 'CLOUD' | 'LOCAL') => void;
   

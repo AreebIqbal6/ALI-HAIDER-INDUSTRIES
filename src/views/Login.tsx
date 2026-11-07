@@ -13,14 +13,6 @@ export const Login: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
-    // In mock mode, if supabase url is dummy, we can bypass or just fake auth
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://mock.supabase.co' || !process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      setTimeout(() => {
-         window.dispatchEvent(new CustomEvent('mock-login'));
-      }, 500);
-      return;
-    }
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -54,36 +46,35 @@ export const Login: React.FC = () => {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Manager Email</label>
-            <input 
-              type="email" 
-              required
+            <label className="block text-sm font-medium text-slate-300 mb-1">Floor Account / Email</label>
+            <input
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
               placeholder="admin@factory.local"
+              required
             />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Password</label>
-            <div className="relative">
-              <input 
-                type="password" 
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all pl-10"
-                placeholder="••••••••"
-              />
-              <Lock size={16} className="absolute left-3 top-3.5 text-slate-500" />
-            </div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Access PIN / Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+              placeholder="••••••••"
+              required
+            />
           </div>
-          
-          <button 
-            type="submit" 
+
+          <button
+            type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition-colors mt-4 disabled:opacity-50"
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 mt-6 disabled:opacity-50 text-sm cursor-pointer"
           >
+            <Lock size={16} />
             {loading ? 'Authenticating...' : 'Secure Login'}
           </button>
         </form>
@@ -91,5 +82,3 @@ export const Login: React.FC = () => {
     </div>
   );
 };
-
-

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   AreaChart, 
   Area, 
@@ -18,28 +18,35 @@ interface SensorDashboardProps {
   machineId?: string;
 }
 
-const efficiencyTrendData = [
-  { time: '08:00', efficiency: 89.2, target: 90 },
-  { time: '09:00', efficiency: 91.5, target: 90 },
-  { time: '10:00', efficiency: 93.0, target: 90 },
-  { time: '11:00', efficiency: 92.4, target: 90 },
-  { time: '12:00', efficiency: 88.6, target: 90 },
-  { time: '13:00', efficiency: 94.2, target: 90 },
-  { time: '14:00', efficiency: 95.1, target: 90 },
-  { time: '15:00', efficiency: 93.8, target: 90 },
-];
-
-const stopsData = [
-  { time: '08:00', warp: 1, weft_fd1: 1, weft_fd2: 0, selvedge: 0 },
-  { time: '10:00', warp: 2, weft_fd1: 0, weft_fd2: 1, selvedge: 0 },
-  { time: '12:00', warp: 0, weft_fd1: 2, weft_fd2: 0, selvedge: 1 },
-  { time: '14:00', warp: 1, weft_fd1: 1, weft_fd2: 0, selvedge: 0 },
-];
-
 export const SensorDashboard: React.FC<SensorDashboardProps> = ({ machineId }) => {
   const { looms, selectedMachineId, ambient } = useTelemetry();
   const effectiveId = machineId || (selectedMachineId !== 'GLOBAL' ? selectedMachineId : 'PIC-427708');
   const loom = looms[effectiveId] || Object.values(looms)[0] || null;
+
+  const efficiencyTrendData = useMemo(() => {
+    const eff = loom ? loom.efficiencyPercentage : 92.5;
+    return [
+      { time: '08:00', efficiency: Number(Math.max(78, eff - 2.8).toFixed(1)), target: 90 },
+      { time: '10:00', efficiency: Number(Math.max(80, eff - 1.2).toFixed(1)), target: 90 },
+      { time: '12:00', efficiency: Number(Math.max(80, eff - 2.5).toFixed(1)), target: 90 },
+      { time: '14:00', efficiency: Number(Math.min(99, eff + 1.1).toFixed(1)), target: 90 },
+      { time: '16:00', efficiency: Number(Math.min(99, eff + 0.8).toFixed(1)), target: 90 },
+      { time: '18:00', efficiency: Number(eff.toFixed(1)), target: 90 },
+      { time: '20:00', efficiency: Number(eff.toFixed(1)), target: 90 },
+    ];
+  }, [loom?.efficiencyPercentage]);
+
+  const stopsData = useMemo(() => {
+    const warp = loom ? loom.stopsShift.WARP : 1;
+    const filling = loom ? loom.stopsShift.FILLING : 1;
+    const selvedge = loom ? loom.stopsShift.SELVEDGE : 0;
+    return [
+      { time: '08:00–11:00', warp: Math.max(0, Math.floor(warp / 2)), weft_fd1: Math.max(0, Math.floor(filling / 2)), weft_fd2: 0, selvedge: 0 },
+      { time: '11:00–14:00', warp: Math.ceil(warp / 2), weft_fd1: 0, weft_fd2: Math.max(0, Math.floor(filling / 2)), selvedge },
+      { time: '14:00–17:00', warp: 0, weft_fd1: Math.ceil(filling / 2), weft_fd2: 0, selvedge: 0 },
+      { time: '17:00–20:00', warp: 0, weft_fd1: 0, weft_fd2: 0, selvedge: 0 },
+    ];
+  }, [loom?.stopsShift]);
 
   const baseRpm = loom ? loom.rpm : 0;
   const isStopped = !loom || loom.state === 'STOPPED' || loom.state === 'OFFLINE' || baseRpm === 0;

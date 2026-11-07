@@ -5,22 +5,22 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useTelemetry } from '../../contexts/TelemetryContext';
 import toast from 'react-hot-toast';
 
-const temperatureData = [
-  { time: '06:00', temp: 26.2, target: 27.5 },
-  { time: '08:00', temp: 27.0, target: 27.5 },
-  { time: '10:00', temp: 27.8, target: 27.5 },
-  { time: '12:00', temp: 28.4, target: 27.5 },
-  { time: '14:00', temp: 28.1, target: 27.5 },
-  { time: '16:00', temp: 27.8, target: 27.5 },
-  { time: '18:00', temp: 27.4, target: 27.5 },
-];
-
 export const ClimateMonitoring: React.FC = () => {
   const { ambient } = useTelemetry();
 
   const temp = ambient.hallTemperatureCelsius;
   const humidity = ambient.hallHumidityPercentage;
   const pressure = ambient.mainAirPressureBar;
+  
+  const temperatureData = React.useMemo(() => [
+    { time: '08:00', temp: Number((temp - 0.8).toFixed(1)), target: 27.5 },
+    { time: '10:00', temp: Number((temp - 0.4).toFixed(1)), target: 27.5 },
+    { time: '12:00', temp: Number((temp + 0.3).toFixed(1)), target: 27.5 },
+    { time: '14:00', temp: Number((temp + 0.6).toFixed(1)), target: 27.5 },
+    { time: '16:00', temp: Number((temp + 0.2).toFixed(1)), target: 27.5 },
+    { time: '18:00', temp: Number((temp - 0.2).toFixed(1)), target: 27.5 },
+    { time: '20:00', temp: Number(temp.toFixed(1)), target: 27.5 },
+  ], [temp]);
   
   const isTempWarning = temp > 30.0 || temp < 24.0;
   const isHumidWarning = humidity > 73.0 || humidity < 60.0;

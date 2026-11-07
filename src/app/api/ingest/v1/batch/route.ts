@@ -14,6 +14,22 @@ import {
 const recentMsgIds = new Set<string>();
 const MAX_MSG_CACHE_SIZE = 10000;
 
+// Fast in-memory state store for Edge Gateway and direct WT32-ETH01 LAN frames
+const inMemoryMachineStates = new Map<string, any>();
+let inMemoryGatewayHealth: any = null;
+let inMemoryAmbient: any = null;
+
+export async function GET() {
+  return NextResponse.json({
+    status: 'ONLINE',
+    gatewayId: 'AHI-GW-01',
+    serverTime: new Date().toISOString(),
+    liveLooms: Object.fromEntries(inMemoryMachineStates.entries()),
+    gatewayHealth: inMemoryGatewayHealth,
+    ambient: inMemoryAmbient
+  });
+}
+
 function isInMemoryDuplicate(msgId: string): boolean {
   if (recentMsgIds.has(msgId)) {
     return true;
@@ -264,22 +280,35 @@ export async function POST(req: NextRequest) {
       });
 
       if (stateRows.length > 0) {
-        const { error: stateErr } = await supabase
-          .from('loom_live_state')
-          .upsert(stateRows, { onConflict: 'machine_id' });
-
-        if (stateErr) {
-          errors.push(`State upsert error: ${stateErr.message}`);
-        } else {
-          processedCount += stateRows.length;
-          
-          // Also update status in registry table `looms`
-          for (const s of stateRows) {
-            await supabase
-              .from('looms')
-              .update({ status: s.state })
-              .eq('machine_id', s.machine_id);
+        for (const s of stateRows) {
+          if (s.machine_id) {
+            inMemoryMachineStates.set(s.machine_id, {
+              ...(inMemoryMachineStates.get(s.machine_id) || {}),
+              ...s
+            });
           }
+        }
+        processedCount += stateRows.length;
+
+        try {
+          const { error: stateErr } = await supabase
+            .from('loom_live_state')
+            .upsert(stateRows, { onConflict: 'machine_id' });
+
+          if (stateErr) {
+            errors.push(`State upsert error: ${stateErr.message}`);
+          } else {
+            // Also update status in registry table `looms`
+            for (const s of stateRows) {
+              await supabase
+                .from('looms')
+                .update({ status: s.state })
+                .eq('machine_id', s.machine_id);
+            }
+          }
+        } catch (dbErr: any) {
+          // Graceful fallback for local offline operation
+          console.warn('Local offline mode: Supabase sync deferred:', dbErr?.message);
         }
       }
     }
@@ -339,15 +368,28 @@ export async function POST(req: NextRequest) {
     const processEnvelopes = envelopesToProcess.filter(e => e.schema === 'ahi.loom.process/1.0' && e.machineId);
     if (processEnvelopes.length > 0) {
       for (const env of processEnvelopes) {
+        if (!env.machineId) continue;
         const data = env.data as LoomProcessData;
-        await supabase
-          .from('loom_live_state')
-          .update({
-            warp_tension_kn: data.warpTensionKn,
-            air_pressure_bar: data.airPressureBar,
-            updated_at: new Date().toISOString()
-          })
-          .eq('machine_id', env.machineId);
+        const existing = inMemoryMachineStates.get(env.machineId) || {};
+        inMemoryMachineStates.set(env.machineId, {
+          ...existing,
+          warp_tension_kn: data.warpTensionKn,
+          air_pressure_bar: data.airPressureBar,
+          updated_at: new Date().toISOString()
+        });
+
+        try {
+          await supabase
+            .from('loom_live_state')
+            .update({
+              warp_tension_kn: data.warpTensionKn,
+              air_pressure_bar: data.airPressureBar,
+              updated_at: new Date().toISOString()
+            })
+            .eq('machine_id', env.machineId);
+        } catch (dbErr: any) {
+          // Graceful offline fallback
+        }
       }
       processedCount += processEnvelopes.length;
     }
@@ -357,13 +399,18 @@ export async function POST(req: NextRequest) {
     if (gatewayEnvelopes.length > 0) {
       for (const env of gatewayEnvelopes) {
         const data = env.data as GatewayHealthData;
-        await supabase.from('gateway_health').upsert({
-          gateway_id: env.gatewayId,
-          last_seen_at: env.ts,
-          status: data.status,
-          connected_devices: data.connectedDevices || 0,
-          metadata: data
-        }, { onConflict: 'gateway_id' });
+        inMemoryGatewayHealth = data;
+        try {
+          await supabase.from('gateway_health').upsert({
+            gateway_id: env.gatewayId,
+            last_seen_at: env.ts,
+            status: data.status,
+            connected_devices: data.connectedDevices || 0,
+            metadata: data
+          }, { onConflict: 'gateway_id' });
+        } catch (dbErr: any) {
+          // Graceful offline fallback
+        }
       }
       processedCount += gatewayEnvelopes.length;
     }

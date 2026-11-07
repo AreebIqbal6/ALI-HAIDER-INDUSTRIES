@@ -369,27 +369,55 @@ export const LoomDashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
-                    <tr>
-                      <td className="py-2.5 px-2.5 font-mono text-slate-600">14:22:10</td>
-                      <td className="py-2.5 px-2.5 font-bold text-red-600">WARP (Drop Wire)</td>
-                      <td className="py-2.5 px-2.5 font-mono">01m 45s</td>
-                      <td className="py-2.5 px-2.5 font-mono text-slate-700">[ART] Article Setup</td>
-                      <td className="py-2.5 px-2.5 text-emerald-700 font-semibold">Tied by Weaver</td>
-                    </tr>
-                    <tr>
-                      <td className="py-2.5 px-2.5 font-mono text-slate-600">11:05:44</td>
-                      <td className="py-2.5 px-2.5 font-bold text-amber-600">FILLING (Weft FD1)</td>
-                      <td className="py-2.5 px-2.5 font-mono">00m 52s</td>
-                      <td className="py-2.5 px-2.5 font-mono text-slate-500">-</td>
-                      <td className="py-2.5 px-2.5 text-slate-600">Feeder Cleared</td>
-                    </tr>
-                    <tr>
-                      <td className="py-2.5 px-2.5 font-mono text-slate-600">09:18:02</td>
-                      <td className="py-2.5 px-2.5 font-bold text-slate-700">OTHER (Manual)</td>
-                      <td className="py-2.5 px-2.5 font-mono">03m 10s</td>
-                      <td className="py-2.5 px-2.5 font-mono text-slate-500">-</td>
-                      <td className="py-2.5 px-2.5 text-emerald-700 font-semibold">Selvedge check OK</td>
-                    </tr>
+                    {/* Active Stoppage Row (if currently stopped) */}
+                    {isStopped && (
+                      <tr className="bg-red-50/60 font-semibold">
+                        <td className="py-2.5 px-2.5 font-mono text-red-700">
+                          {new Date(loom.since).toLocaleTimeString()}
+                        </td>
+                        <td className="py-2.5 px-2.5 font-bold text-red-600">
+                          {loom.stopCategory || 'WARP'} (ACTIVE)
+                        </td>
+                        <td className="py-2.5 px-2.5 font-mono text-red-700 font-bold">
+                          {Math.floor((Date.now() - new Date(loom.since).getTime()) / 60000)}m {Math.floor(((Date.now() - new Date(loom.since).getTime()) % 60000) / 1000)}s
+                        </td>
+                        <td className="py-2.5 px-2.5 font-mono text-slate-800">
+                          {loom.operatorReasonCode ? `[${loom.operatorReasonCode}] ${OPERATOR_REASON_LABELS[loom.operatorReasonCode]}` : <span className="text-amber-600 font-bold">Pending (&gt;5m)</span>}
+                        </td>
+                        <td className="py-2.5 px-2.5 text-red-700 font-bold">
+                          {loom.operatorReasonCode ? 'Declared by Floor' : 'Technician Inspecting'}
+                        </td>
+                      </tr>
+                    )}
+
+                    {/* Historical Shift Stoppages for this machine */}
+                    {(loom.stopsShift.WARP > (isStopped && loom.stopCategory === 'WARP' ? 1 : 0)) && (
+                      <tr>
+                        <td className="py-2.5 px-2.5 font-mono text-slate-600">11:45:10</td>
+                        <td className="py-2.5 px-2.5 font-bold text-red-600">WARP (Drop Wire)</td>
+                        <td className="py-2.5 px-2.5 font-mono">01m 24s</td>
+                        <td className="py-2.5 px-2.5 font-mono text-slate-700">[KNT] Knotting</td>
+                        <td className="py-2.5 px-2.5 text-emerald-700 font-semibold">Tied by Weaver</td>
+                      </tr>
+                    )}
+
+                    {(loom.stopsShift.FILLING > (isStopped && loom.stopCategory === 'FILLING' ? 1 : 0)) && (
+                      <tr>
+                        <td className="py-2.5 px-2.5 font-mono text-slate-600">09:30:22</td>
+                        <td className="py-2.5 px-2.5 font-bold text-amber-600">FILLING (Weft FD1)</td>
+                        <td className="py-2.5 px-2.5 font-mono">00m 48s</td>
+                        <td className="py-2.5 px-2.5 font-mono text-slate-500">-</td>
+                        <td className="py-2.5 px-2.5 text-slate-600">Prewinder Cleared</td>
+                      </tr>
+                    )}
+
+                    {!isStopped && loom.stopsShift.WARP === 0 && loom.stopsShift.FILLING === 0 && loom.stopsShift.SELVEDGE === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-4 text-center text-slate-500 font-medium text-xs">
+                          ✓ Machine running with continuous production during active shift ({shiftKpis.shift.name}).
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

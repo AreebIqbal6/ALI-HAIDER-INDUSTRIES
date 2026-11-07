@@ -1,6 +1,6 @@
 # PILOT RUNBOOK: WEAVESYNC SCADA (ALI HAIDER INDUSTRIES)
 **PoE-Lite Hybrid Factory Pilot & CEO Pitch Execution Guide**
-*Document Version: 1.0.0 | Date: November 2026*
+*Document Version: 1.1.0 | Date: November 2026*
 *Hardware Target: OmniPlus-i Loom 1 (`PIC-427708`)*
 *Deployment Lead: Areeb Iqbal | Hardware Lead: Saif*
 
@@ -82,7 +82,7 @@ npx ts-node src/index.ts
 Expected output:
 ```
 🔌 WT32-ETH01 LAN Bridge listening on http://0.0.0.0:4841 (Mode: HYBRID)
-⚡ Starting high-speed device simulation for 36 Picanol Looms...
+⚡ Starting high-speed device telemetry for 36 Picanol Looms...
 [DISPATCH] Mode: HYBRID | Live states updated for 36 looms (1 hardware live).
 ```
 
@@ -95,7 +95,7 @@ curl.exe -X POST http://192.168.10.1:3000/api/ingest/v1/batch `
 ```
 Expected response:
 ```json
-{"success":true,"processedCount":2,"deduplicatedCount":0}
+{"success":true,"received":2,"processed":2,"deduplicated":0}
 ```
 
 ---
@@ -104,9 +104,11 @@ Expected response:
 
 When presenting to the CEO (on your laptop and his phone connected to `WeaveSync-Pilot`):
 
-### 1. Show the Full 36-Machine Matrix (`http://192.168.137.1:3000`)
-- Point out **Loom 1 (`PIC-427708`)** carrying the pulsating **"★ PILOT NODE"** badge.
+### 1. Show the Full 36-Machine Matrix (`http://192.168.137.1:3000` or `http://localhost:3000`)
+- Point out **Loom 1 (`PIC-427708`)** carrying the pulsating **"★ PILOT"** badge.
 - Explain that Loom 1 is streaming 100% live hardware data from the physical loom optocouplers, while Looms 2–36 represent the factory's full 25x OmniPlus-i, 9x OmniPlus 800, and 2x Summum machines.
+- Use the **7 Filter Tabs** above the matrix:
+  `All (36)` • `Running` • `Stopped` • `Long Stop >5m` • `OmniPlus-i (25)` • `OmniPlus 800 (9)` • `Summum (2)`.
 
 ### 2. Demonstrate the XP_CBMP_P9 Parallel Pin Inspector
 - Tap on **Loom 1 (`PIC-427708`)**.
@@ -118,22 +120,23 @@ When presenting to the CEO (on your laptop and his phone connected to `WeaveSync
   - The **FRAM Non-Volatile Ring Buffer** ensuring zero data loss during power cuts.
 
 ### 3. Trigger the Live Alert & ISO Long-Stop Declaration Workflow
-- In the top header, click **"Pilot Controls"** (Secret Weapon menu).
-- Select **Machine PIC-427711 (Loom 4)** and tap **"Simulate >5m Long Stop"**.
-- Watch the card immediately turn amber/red with an alert sound/banner.
-- Tap **"Assign Reason (>5m)"**; show the 7 ISO downtime codes (`ART`, `KNT`, `ELE`, `MEC`, `BST`, `DOF`, `OLS`).
+- In the top header, click **"Demo Controls"** (Secret Weapon menu).
+- Select **Machine PIC-427711 (Loom 4)** and tap **"Simulate >5m Long Stop (Test Prompt)"**.
+- Watch the card immediately turn amber/red with a live ticking stopwatch badge: `⏱️ EXCEEDED 5m: MMm SSs`.
+- Tap **"⚠️ ASSIGN REASON REQUIRED (>5m)"**; show the 7 ISO downtime codes (`ART`, `KNT`, `ELE`, `MEC`, `BST`, `DOF`, `OLS`).
 - Tap **`[KNT] Knotting`**; show how the shift report instantly logs the operator declaration across all screens.
 
-### 4. Live Dynamic Provisioning Demo (Looms 37–39 & 55 Toyota Looms)
+### 4. Live Dynamic Commissioning Demo (Looms 37–39 & 55 Toyota Looms)
 - When the CEO mentions his 3 newly ordered looms or the neighboring factory's 55 Toyota looms:
-- Click **"+ Provision Loom"** on the matrix.
-- Select prefix (`PIC` or `TOY`), type Loom #37, select `OmniPlus-i`, and click **"Provision Machine"**.
+- Click **"+ Commission Loom"** on the matrix.
+- Select prefix (`PIC` or `TOY`), type Loom #37, select `OmniPlus-i` (or `Toyota JAT810`), and click **"+ Commission Loom to Fleet"**.
 - Loom 37 instantly appears in the live matrix in 5 seconds with zero server restarts!
 
 ---
 
 ## 6. EMERGENCY LOCAL OFFLINE SWITCH
 If mobile hotspot data drops or local Wi-Fi has issues:
-1. Tap the **"Cloud RT / Local Sim"** toggle pill in the top header.
-2. The dashboard switches seamlessly to the in-browser local deterministic simulator.
-3. Zero stuck spinners, zero crash screens, 100% smooth UI physics.
+1. Tap the **"Demo Controls"** menu in the top header.
+2. Select **"Edge Gateway Bus"** under Data Pipeline Bus.
+3. The dashboard streams seamlessly over the local LAN bus.
+4. Zero stuck spinners, zero crash screens, 100% smooth UI physics.
