@@ -33,7 +33,7 @@ export const OPERATOR_REASON_LABELS: Record<OperatorReasonCode, string> = {
   OLS: 'Other Long Stop',
 };
 
-export type LoomFamily = 'OmniPlus-i' | 'OmniPlus Summum' | 'OmniPlus 800';
+export type LoomFamily = 'OmniPlus-i' | 'OmniPlus Summum' | 'OmniPlus 800' | 'Toyota JAT810';
 
 export type SchemaVersion = 
   | 'ahi.loom.state/1.0'
