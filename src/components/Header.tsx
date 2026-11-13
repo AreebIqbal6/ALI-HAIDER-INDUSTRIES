@@ -7,19 +7,15 @@ import {
   X, 
   BarChart2, 
   Gauge, 
-  ArrowLeft,
-  Wifi,
-  WifiOff,
-  Zap,
-  Play,
-  AlertTriangle,
-  Sliders,
-  Cloud,
-  HardDrive,
-  ChevronDown,
-  CheckCircle2,
-  Cpu,
-  Plus
+  ArrowLeft, 
+  Wifi, 
+  Play, 
+  AlertTriangle, 
+  Sliders, 
+  Cloud, 
+  HardDrive, 
+  Zap, 
+  Radio
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useRouter, usePathname } from 'next/navigation';
@@ -29,20 +25,21 @@ export const Header: React.FC = () => {
     looms, 
     selectedMachineId, 
     setSelectedMachineId, 
-    shiftKpis,
-    connectionStatus,
-    demoMode,
-    setDemoMode,
+    shiftKpis, 
+    connectionStatus, 
+    demoMode, 
+    setDemoMode, 
     triggerSimulatedStop,
-    clearSimulatedStop
+    triggerSimulatedFailedStart,
+    triggerSimulatedLongStop,
+    clearSimulatedStop 
   } = useTelemetry();
 
   const [time, setTime] = useState(new Date());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [demoControlsOpen, setDemoControlsOpen] = useState(false);
+  const [pilotDrawerOpen, setPilotDrawerOpen] = useState(false);
   const [targetPilotLoom, setTargetPilotLoom] = useState<string>('PIC-427708');
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -50,21 +47,6 @@ export const Header: React.FC = () => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
-
-  // Close Demo Controls dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDemoControlsOpen(false);
-      }
-    };
-    if (demoControlsOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [demoControlsOpen]);
 
   const selectedLoom = selectedMachineId !== 'GLOBAL' ? looms[selectedMachineId] : null;
   const isStopped = selectedLoom && selectedLoom.state === 'STOPPED';
@@ -101,7 +83,7 @@ export const Header: React.FC = () => {
           {/* Logo & Brand Title */}
           <div 
             onClick={() => { setSelectedMachineId('GLOBAL'); router.push('/'); }}
-            className="flex items-center gap-2.5 cursor-pointer"
+            className="flex items-center gap-2 cursor-pointer"
           >
             <div className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center flex-shrink-0">
               <img 
@@ -148,7 +130,7 @@ export const Header: React.FC = () => {
                   : 'text-slate-300 hover:bg-slate-800 hover:text-white'
               }`}
             >
-              <BarChart2 size={15} /> Shift Analytics & OEE
+              <BarChart2 size={15} /> Shift Analytics &amp; OEE
             </button>
           </nav>
 
@@ -156,7 +138,7 @@ export const Header: React.FC = () => {
           {selectedMachineId !== 'GLOBAL' && selectedLoom && (
             <div className="hidden lg:flex items-center gap-2 bg-slate-800/90 border border-slate-700 px-2.5 py-1 rounded-lg">
               <span className="text-xs font-bold text-blue-400">
-                Inspecting Loom #{selectedLoom.loomNumber} ({selectedLoom.machineId})
+                Loom #{selectedLoom.loomNumber} ({selectedLoom.machineId})
               </span>
               <button 
                 onClick={() => setSelectedMachineId('GLOBAL')}
@@ -186,163 +168,239 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: Demo Controls Dropdown & Shift Clock */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          {/* Real Dropdown in Header: "Demo Controls" */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setDemoControlsOpen(!demoControlsOpen)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95 border ${
-                demoControlsOpen
-                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md ring-2 ring-amber-300/40'
-                  : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
-              }`}
-              title="Open CEO Demo Controls Dropdown"
-            >
-              <Zap size={14} className={demoControlsOpen ? 'fill-slate-950 animate-bounce' : 'text-amber-400'} />
-              <span>Demo Controls</span>
-              <ChevronDown size={13} className={`transition-transform duration-200 ${demoControlsOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {/* Dropdown Panel */}
-            {demoControlsOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-[#1e293b]/98 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-150 space-y-3.5">
-                {/* Dropdown Header */}
-                <div className="flex items-center justify-between border-b border-slate-700/80 pb-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-amber-500/20 border border-amber-500/40 rounded-lg text-amber-400">
-                      <Sliders size={16} />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-white leading-tight">CEO Demo Controls Deck</h4>
-                      <span className="text-[10px] text-slate-400">Real-time simulation &amp; trigger switch</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setDemoControlsOpen(false)}
-                    className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-800"
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
-
-                {/* 1. SCADA Data Bus Toggle: Cloud Realtime vs Local Sim */}
-                <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                    Data Pipeline Bus:
-                  </span>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      onClick={() => setDemoMode('LOCAL')}
-                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
-                        demoMode === 'LOCAL'
-                          ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
-                          : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-                      }`}
-                    >
-                      <HardDrive size={13} />
-                      <span>Edge Gateway Bus</span>
-                    </button>
-                    <button
-                      onClick={() => setDemoMode('CLOUD')}
-                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
-                        demoMode === 'CLOUD'
-                          ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
-                          : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-                      }`}
-                    >
-                      <Cloud size={13} />
-                      <span>Cloud Realtime</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. Target Loom Selector */}
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                    Target Machine:
-                  </label>
-                  <select
-                    value={targetPilotLoom}
-                    onChange={(e) => setTargetPilotLoom(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-white focus:outline-none focus:border-blue-500 cursor-pointer"
-                  >
-                    {Object.values(looms).map(l => (
-                      <option key={l.machineId} value={l.machineId}>
-                        Loom #{l.loomNumber} ({l.machineId}) {l.machineId === 'PIC-427708' ? '★ PILOT NODE' : ''} [{l.state}]
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 3. Stoppage Triggers */}
-                <div className="space-y-1.5 pt-1 border-t border-slate-700/80">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Trigger On-Demand Event:
-                  </span>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      onClick={() => {
-                        triggerSimulatedStop(targetPilotLoom, 'WARP');
-                        setDemoControlsOpen(false);
-                      }}
-                      className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg bg-amber-950/60 hover:bg-amber-900/70 border border-amber-700 text-amber-200 text-xs font-bold transition-colors cursor-pointer"
-                    >
-                      <AlertTriangle size={13} className="text-amber-400" />
-                      <span>WARP Stop</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        triggerSimulatedStop(targetPilotLoom, 'FILLING');
-                        setDemoControlsOpen(false);
-                      }}
-                      className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg bg-orange-950/60 hover:bg-orange-900/70 border border-orange-700 text-orange-200 text-xs font-bold transition-colors cursor-pointer"
-                    >
-                      <AlertTriangle size={13} className="text-orange-400" />
-                      <span>FILLING Stop</span>
-                    </button>
-                  </div>
-
-                  {/* >5m Long Stop Trigger */}
-                  <button
-                    onClick={() => {
-                      triggerSimulatedStop(targetPilotLoom, 'LONG_STOP');
-                      setDemoControlsOpen(false);
-                    }}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-red-950/80 hover:bg-red-900/90 border border-red-700 text-red-200 text-xs font-bold transition-colors cursor-pointer shadow-md"
-                  >
-                    <AlertTriangle size={14} className="text-red-400 animate-pulse" />
-                    <span>Simulate &gt;5m Long Stop (Test Prompt)</span>
-                  </button>
-
-                  {/* Resume Running Button */}
-                  <button
-                    onClick={() => {
-                      clearSimulatedStop(targetPilotLoom);
-                      setDemoControlsOpen(false);
-                    }}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-emerald-950/70 hover:bg-emerald-900/80 border border-emerald-700 text-emerald-200 text-xs font-bold transition-colors cursor-pointer"
-                  >
-                    <Play size={13} className="text-emerald-400" />
-                    <span>Resume RUNNING at Set RPM</span>
-                  </button>
-                </div>
-              </div>
+        {/* Right: Always-Visible Mode Toggle + Pilot Controls + Shift Clock */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
+          {/* 1. ALWAYS-VISIBLE MODE TOGGLE: CLOUD RT / LOCAL SIM */}
+          <button
+            onClick={() => setDemoMode(demoMode === 'CLOUD' ? 'LOCAL' : 'CLOUD')}
+            className={`flex items-center gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer border shadow-sm active:scale-95 ${
+              demoMode === 'CLOUD'
+                ? 'bg-blue-900/60 hover:bg-blue-800/80 text-blue-200 border-blue-500/60 ring-1 ring-blue-400/30'
+                : 'bg-emerald-900/60 hover:bg-emerald-800/80 text-emerald-200 border-emerald-500/60 ring-1 ring-emerald-400/30'
+            }`}
+            title={`Current: ${demoMode === 'CLOUD' ? 'Cloud Realtime (Supabase)' : 'Local Sim / Edge Bus'}. Click to switch.`}
+          >
+            {demoMode === 'CLOUD' ? (
+              <>
+                <Cloud size={13} className="text-blue-400" />
+                <span className="hidden xs:inline">CLOUD RT</span>
+                <span className="xs:hidden">CLOUD</span>
+              </>
+            ) : (
+              <>
+                <HardDrive size={13} className="text-emerald-400" />
+                <span className="hidden xs:inline">LOCAL SIM</span>
+                <span className="xs:hidden">LOCAL</span>
+              </>
             )}
-          </div>
+            <span className={`w-1.5 h-1.5 rounded-full ${demoMode === 'CLOUD' ? 'bg-blue-400 animate-pulse' : 'bg-emerald-400'}`} />
+          </button>
 
-          <div className="flex flex-col items-end leading-tight font-mono text-slate-300">
-            <div className="text-xs font-bold tabular-nums text-white">
+          {/* 2. PILOT CONTROLS BUTTON */}
+          <button
+            onClick={() => setPilotDrawerOpen(true)}
+            className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer border shadow-sm active:scale-95 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/50"
+            title="Open Pilot Demo Controls (Warp, Weft, Failed Start, Long Stop)"
+          >
+            <Zap size={13} className="text-amber-400 fill-amber-400" />
+            <span className="hidden sm:inline">Pilot Controls</span>
+            <span className="sm:hidden">Pilot</span>
+          </button>
+
+          {/* Shift Clock */}
+          <div className="flex flex-col items-end leading-tight font-mono text-slate-300 pl-1">
+            <div className="text-[11px] sm:text-xs font-bold tabular-nums text-white">
               <span className="inline sm:hidden">{format(time, 'hh:mm a')}</span>
               <span className="hidden sm:inline">{format(time, 'hh:mm:ss a')}</span>
             </div>
-            <div className="text-[10px] text-blue-400 font-bold hidden sm:block">
-              {shiftKpis.shift.name}
+            <div className="text-[9px] text-blue-400 font-bold hidden sm:block">
+              {shiftKpis.shift.type === 'SHIFT_A' ? 'Shift A' : 'Shift B'}
             </div>
           </div>
         </div>
       </header>
+
+      {/* Slide-Over Pilot Controls Drawer */}
+      {pilotDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div 
+            onClick={() => setPilotDrawerOpen(false)}
+            className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity"
+          />
+
+          {/* Drawer Panel */}
+          <div className="relative w-full max-w-md bg-[#1e293b] border-l border-slate-700 shadow-2xl h-full flex flex-col z-10 animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-900/50">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-amber-500/20 border border-amber-500/40 rounded-xl text-amber-400">
+                  <Sliders size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                    <span>Pilot Demo Controls</span>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      ON-DEMAND
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Trigger simulated hardware faults for the CEO pitch</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPilotDrawerOpen(false)}
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Target Machine Selection */}
+              <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Target Loom:
+                </label>
+                <select
+                  value={targetPilotLoom}
+                  onChange={(e) => setTargetPilotLoom(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  {Object.values(looms).map(l => (
+                    <option key={l.machineId} value={l.machineId}>
+                      Loom #{l.loomNumber} ({l.machineId}) {l.machineId === 'PIC-427708' ? '★ HARDWARE PILOT' : ''} [{l.state}]
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-500">
+                  Default: Loom #1 (PIC-427708) — the physical WT32-ETH01 hardware node.
+                </p>
+              </div>
+
+              {/* Stoppage Triggers */}
+              <div className="space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Simulate Specific Stop Faults:
+                </span>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Warp Stop */}
+                  <button
+                    onClick={() => {
+                      triggerSimulatedStop(targetPilotLoom, 'WARP');
+                      setPilotDrawerOpen(false);
+                    }}
+                    className="flex flex-col items-center justify-center p-3 rounded-xl bg-red-950/60 hover:bg-red-900/70 border border-red-700/80 text-red-200 transition-all cursor-pointer active:scale-95 group text-center"
+                  >
+                    <AlertTriangle size={18} className="text-red-400 mb-1 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-bold">WARP BREAK</span>
+                    <span className="text-[10px] text-red-300/70">Pin 8 (PI_WD) Drop-Wire</span>
+                  </button>
+
+                  {/* Filling Stop */}
+                  <button
+                    onClick={() => {
+                      triggerSimulatedStop(targetPilotLoom, 'FILLING');
+                      setPilotDrawerOpen(false);
+                    }}
+                    className="flex flex-col items-center justify-center p-3 rounded-xl bg-orange-950/60 hover:bg-orange-900/70 border border-orange-700/80 text-orange-200 transition-all cursor-pointer active:scale-95 group text-center"
+                  >
+                    <AlertTriangle size={18} className="text-orange-400 mb-1 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-bold">FILLING BREAK</span>
+                    <span className="text-[10px] text-orange-300/70">Pin 10 (PI_FD) Optical</span>
+                  </button>
+                </div>
+
+                {/* Failed Start */}
+                <button
+                  onClick={() => {
+                    triggerSimulatedFailedStart(targetPilotLoom);
+                    setPilotDrawerOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-purple-950/60 hover:bg-purple-900/70 border border-purple-700/80 text-purple-200 transition-all cursor-pointer active:scale-95 group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Radio size={18} className="text-purple-400 group-hover:rotate-45 transition-transform" />
+                    <div className="text-left">
+                      <div className="text-xs font-bold">FAILED START (&lt; 5 picks)</div>
+                      <div className="text-[10px] text-purple-300/70">Restarts, weaves 3 picks, then aborts with restart fault</div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold bg-purple-900/80 px-2 py-1 rounded text-purple-200">
+                    TEST
+                  </span>
+                </button>
+
+                {/* >5m Long Stop */}
+                <button
+                  onClick={() => {
+                    triggerSimulatedLongStop(targetPilotLoom);
+                    setPilotDrawerOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-amber-950/70 hover:bg-amber-900/80 border border-amber-600 text-amber-200 transition-all cursor-pointer active:scale-95 group shadow-md"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <AlertTriangle size={18} className="text-amber-400 animate-pulse" />
+                    <div className="text-left">
+                      <div className="text-xs font-bold">LONG STOP (&gt; 5 min timer)</div>
+                      <div className="text-[10px] text-amber-300/70">Sets downtime to 5.5m to test supervisor reason prompt</div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold bg-amber-900/90 px-2 py-1 rounded text-amber-200">
+                    &gt; 5 MIN
+                  </span>
+                </button>
+              </div>
+
+              {/* Resume Running Action */}
+              <div className="pt-2 border-t border-slate-700">
+                <button
+                  onClick={() => {
+                    clearSimulatedStop(targetPilotLoom);
+                    setPilotDrawerOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer active:scale-95"
+                >
+                  <Play size={16} />
+                  <span>Resume RUNNING at Set RPM</span>
+                </button>
+              </div>
+
+              {/* Data Bus Toggle */}
+              <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800 space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Active Data Pipeline:
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setDemoMode('LOCAL')}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                      demoMode === 'LOCAL'
+                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
+                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                    }`}
+                  >
+                    <HardDrive size={14} />
+                    <span>Edge Bus</span>
+                  </button>
+                  <button
+                    onClick={() => setDemoMode('CLOUD')}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                      demoMode === 'CLOUD'
+                        ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
+                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                    }`}
+                  >
+                    <Cloud size={14} />
+                    <span>Cloud Realtime</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Collapsible Navigation Drawer */}
       {mobileMenuOpen && (
@@ -381,14 +439,14 @@ export const Header: React.FC = () => {
               }`}
             >
               <BarChart2 size={18} className="text-emerald-400" />
-              <span>Verified Shift Analytics & OEE</span>
+              <span>Verified Shift Analytics &amp; OEE</span>
             </button>
             <button
-              onClick={() => { setDemoControlsOpen(true); setMobileMenuOpen(false); }}
+              onClick={() => { setPilotDrawerOpen(true); setMobileMenuOpen(false); }}
               className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-amber-400 bg-amber-950/40 border border-amber-800 text-left cursor-pointer"
             >
               <Zap size={16} />
-              <span>Open Demo Controls Deck</span>
+              <span>Open Pilot Controls Deck</span>
             </button>
             {selectedMachineId !== 'GLOBAL' && (
               <button 

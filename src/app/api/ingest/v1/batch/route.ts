@@ -282,9 +282,11 @@ export async function POST(req: NextRequest) {
       if (stateRows.length > 0) {
         for (const s of stateRows) {
           if (s.machine_id) {
+            const existingMemory = inMemoryMachineStates.get(s.machine_id) || {};
             inMemoryMachineStates.set(s.machine_id, {
-              ...(inMemoryMachineStates.get(s.machine_id) || {}),
-              ...s
+              ...existingMemory,
+              ...s,
+              rawPinHistory: (body as any)?.rawPinHistory || existingMemory.rawPinHistory || undefined
             });
           }
         }

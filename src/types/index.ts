@@ -201,13 +201,21 @@ export interface LongStopDeclaration {
 }
 
 // 8. Hardware Node & Optocoupler Pin Diagnostics (XP_CBMP_P9 Tapping)
+export interface PinTransitionEvent {
+  pin: string;
+  level: number;
+  offsetMsFromStop: number;
+  timestampMs?: number;
+}
+
 export interface ParallelPinState {
-  piStrt: boolean; // Pin 9: Start / Run status (1 = RUNNING, 0 = STOPPED)
-  piPp: boolean;   // Pin 7: Pick pulse counter (rising edge per pick)
-  piWd: boolean;   // Pin 8: Warp stop detection (active high opto trigger)
-  piFd: boolean;   // Pin 10: Filling / Weft stop detection
+  piStrt: boolean; // Pin 9 -> ESP32 GPIO 4: Start / Run status (1 = RUNNING, 0 = STOPPED)
+  piPp: boolean;   // Pin 7 -> ESP32 GPIO 32 [Hardware PCNT]: Pick pulse counter
+  piWd: boolean;   // Pin 8 -> ESP32 GPIO 33: Warp stop detection
+  piFd: boolean;   // Pin 10 -> ESP32 GPIO 14: Filling / Weft stop detection
   piLd: boolean;   // Pin 6: Leno / Selvedge stop detection
   lastPulseTs: string;
+  rawPinHistory?: PinTransitionEvent[];
   classificationWindow: {
     windowStartRelMs: number; // -300ms
     windowEndRelMs: number;   // +1000ms
@@ -381,5 +389,7 @@ export interface TelemetryContextType {
 
   // Pilot Demo Secret Weapon Controls
   triggerSimulatedStop: (machineId: string, category: 'WARP' | 'FILLING' | 'SELVEDGE' | 'LONG_STOP') => Promise<void>;
+  triggerSimulatedFailedStart: (machineId: string) => Promise<void>;
+  triggerSimulatedLongStop: (machineId: string) => Promise<void>;
   clearSimulatedStop: (machineId: string) => Promise<void>;
 }

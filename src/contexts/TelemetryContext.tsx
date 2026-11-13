@@ -123,6 +123,13 @@ function createDefaultHardwareDiagnostics(isPilot: boolean, machineId: string, i
       piFd: false,
       piLd: false,
       lastPulseTs: new Date().toISOString(),
+      rawPinHistory: [
+        { pin: 'PI_PP', level: 1, offsetMsFromStop: -180 },
+        { pin: 'PI_PP', level: 0, offsetMsFromStop: -110 },
+        { pin: 'PI_STRT', level: 1, offsetMsFromStop: -45 },
+        { pin: 'PI_WD', level: 0, offsetMsFromStop: -20 },
+        { pin: 'PI_FD', level: 0, offsetMsFromStop: 0 }
+      ],
       classificationWindow: {
         windowStartRelMs: -300,
         windowEndRelMs: 1000,
@@ -445,6 +452,56 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     toast.error(`🚨 PILOT TRIGGER: Machine ${machineId} STOPPED (${category === 'LONG_STOP' ? '>5m Long Stop' : category})!`, { duration: 4000 });
   }, []);
+
+  // Trigger simulated failed-start fault (< 5 picks before subsequent stop)
+  const triggerSimulatedFailedStart = useCallback(async (machineId: string) => {
+    const now = new Date();
+    setLooms(prev => {
+      const current = prev[machineId];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [machineId]: {
+          ...current,
+          state: 'STOPPED',
+          stopCategory: 'FILLING',
+          stopId: `demo-failed-start-${Date.now()}`,
+          since: now.toISOString(),
+          rpm: 0,
+          isLongStop: false,
+          hardwareDiagnostics: current.hardwareDiagnostics ? {
+            ...current.hardwareDiagnostics,
+            optocouplerPins: {
+              ...current.hardwareDiagnostics.optocouplerPins,
+              piStrt: false,
+              piPp: false,
+              piFd: true,
+              rawPinHistory: [
+                { pin: 'PI_STRT', level: 1, offsetMsFromStop: -450 },
+                { pin: 'PI_PP', level: 1, offsetMsFromStop: -380 },
+                { pin: 'PI_PP', level: 0, offsetMsFromStop: -320 },
+                { pin: 'PI_PP', level: 1, offsetMsFromStop: -240 },
+                { pin: 'PI_FD', level: 1, offsetMsFromStop: -60 },
+                { pin: 'PI_STRT', level: 0, offsetMsFromStop: 0 },
+              ],
+              classificationWindow: {
+                ...current.hardwareDiagnostics.optocouplerPins.classificationWindow,
+                detectedReason: 'FILLING',
+                isWithinWindow: true
+              }
+            }
+          } : undefined,
+          lastUpdated: now.toISOString()
+        }
+      };
+    });
+    toast.error(`🚨 RESTART FAULT (<5 picks): ${machineId} aborted start at 3 picks!`, { duration: 4500 });
+  }, []);
+
+  // Trigger simulated Long Stop (>5 minutes ago)
+  const triggerSimulatedLongStop = useCallback(async (machineId: string) => {
+    await triggerSimulatedStop(machineId, 'LONG_STOP');
+  }, [triggerSimulatedStop]);
 
   // Clear simulated stop on demand
   const clearSimulatedStop = useCallback(async (machineId: string) => {
@@ -813,6 +870,8 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       acknowledgeStop,
       dispatchTechnician,
       triggerSimulatedStop,
+      triggerSimulatedFailedStart,
+      triggerSimulatedLongStop,
       clearSimulatedStop,
     }}>
       {children}

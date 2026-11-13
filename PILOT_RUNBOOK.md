@@ -30,25 +30,27 @@ Before heading to Ali Haider Industries (SITE Industrial Area, Karachi), verify 
 > - The true common return ground for the parallel interface is **Pin 14 (`PGD`: Protective Ground / 0V Reference)**.
 > - Pin 11 is `SUP_PI` (Parallel Interface Supply). Pin 15 is `26V` (`CBMP_26VF`: Filtered 26V DC supply from fuse F1).
 
-### Verified DB-15 Male Tap Connector Pinout (`XP_CBMP_P9`):
+### Verified DB-15 Male Tap Connector Pinout (`XP_CBMP_P9` & Safe ESP32 Pins):
 
 ```
 ========================================================================================
-[ Picanol XP_CBMP_P9 (DB-15) ]       [ PC817 Optocoupler Board ]       [ WT32-ETH01 ]
+[ Picanol XP_CBMP_P9 (DB-15) ]       [ PC817 Optocoupler ]       [ WT32-ETH01 Safe Pins ]
 ========================================================================================
-Pin 9  (PI_STRT: Run Status)   ---> Channel 1 Input (+) ---> Output ---> GPIO 4
-Pin 7  (PI_PP: Pick Pulse)     ---> Channel 2 Input (+) ---> Output ---> GPIO 2 (Interrupt)
-Pin 8  (PI_WD: Warp Stop)      ---> Channel 3 Input (+) ---> Output ---> GPIO 14
-Pin 10 (PI_FD: Filling Stop)   ---> Channel 4 Input (+) ---> Output ---> GPIO 15
-Pin 6  (PI_LD: Selvedge Leno)  ---> Channel 5 Input (+) ---> Output ---> GPIO 32
-Pin 14 (PGD: Return Ground)    ---> All Optocoupler Inputs (-) [Common Ground Return]
+Pin 9  (PI_STRT: Run Status)   ---> Ch 1 Input (+) ---> Output ---> GPIO 4  (Safe IO, Active-Low)
+Pin 7  (PI_PP: Pick Pulse)     ---> Ch 2 Input (+) ---> Output ---> GPIO 32 (Hardware PCNT Counter)
+Pin 8  (PI_WD: Warp Stop)      ---> Ch 3 Input (+) ---> Output ---> GPIO 33 (Safe IO, Drop-Wire)
+Pin 10 (PI_FD: Filling Stop)   ---> Ch 4 Input (+) ---> Output ---> GPIO 14 (Safe IO, Optical Weft)
+Pin 14 (PGD: Return Ground)    ---> All Optocoupler Cathodes (-) [Common Ground Reference]
 ----------------------------------------------------------------------------------------
 Pin 11 (SUP_PI: Interface VCC) <--- Jumpered to Pin 15 (26V) to power high-side drivers
-Pin 15 (26V: Filtered 26V DC)  ---> Ties to Pin 11 (CBMP internal fuse protected)
+Pin 15 (26V: Filtered 26V DC)  ---> Ties to Pin 11 (CBMP internal fuse F1 protected)
 ========================================================================================
-Pins 1, 2, 3, 4, 5: RS-422 Serial BICOM (TX_L, TX_H, GND_RS422, RX_L, RX_H) - LEAVE UNCONNECTED
-Pin 12: PI_RES (Reserved / Bobbin Brake) - LEAVE UNCONNECTED
-Pin 13: NC (Not Connected)
+* CRITICAL NOTE ON BOOT STRAPPING PINS:
+  - DO NOT USE GPIO 0  (Permanently reserved for LAN8720A 50MHz RMII Clock input)
+  - DO NOT USE GPIO 2  (Boot strapping pin - pulls low on boot)
+  - DO NOT USE GPIO 12 (VDD_SDIO flash voltage strap - will brick boot if high)
+  - DO NOT USE GPIO 15 (Boot strapping pin - silences boot logs)
+  - Pins 1, 2, 3, 4, 5: RS-422 Serial BICOM (TX_L, TX_H, GND_RS422, RX_L, RX_H) - LEAVE UNCONNECTED!
 ```
 
 > **RESISTOR SIZING WARNING (26V DC LOGIC):**
@@ -60,15 +62,25 @@ Pin 13: NC (Not Connected)
 
 ---
 
-## 3. LAPTOP NETWORK & HOTSPOT CONFIGURATION
+## 3. AUTOMATED 1-CLICK PILOT LAUNCHER (`START_PILOT.bat`)
 
-### Step 3.1: Configure Laptop Ethernet Adapter (Direct Cable to PoE Injector)
+To eliminate multi-homed Windows networking traps (where Windows drops Wi-Fi internet because of Ethernet's default gateway) and open required firewall ports automatically, run our automated batch launcher:
+
+1. Right-click **`START_PILOT.bat`** in the repository root -> **"Run as administrator"**.
+2. The script automatically executes:
+   - Sets Ethernet adapter to static IP `192.168.10.1 / 255.255.255.0` with **NO default gateway** (preserving laptop Wi-Fi internet/Supabase connectivity).
+   - Adds Windows Firewall inbound allow rules for TCP `3000` (Next.js SCADA), `4841` (Gateway HTTP Bridge), and `1883` (Mosquitto MQTT).
+   - Spawns the Edge Gateway service in `HYBRID` mode.
+   - Builds and boots the Next.js production server binding to `0.0.0.0:3000`.
+
+### Manual Network Configuration (Fallback)
+If running manually without `START_PILOT.bat`:
 1. Open Windows **Network Connections** (`ncpa.cpl`).
 2. Right-click **Ethernet** -> **Properties** -> **Internet Protocol Version 4 (TCP/IPv4)**.
 3. Select **Use the following IP address**:
    - **IP Address:** `192.168.10.1`
    - **Subnet Mask:** `255.255.255.0`
-   - **Default Gateway:** *Leave Blank*
+   - **Default Gateway:** *LEAVE BLANK* (CRITICAL: Do NOT set 192.168.10.1 as gateway!)
 4. Click **OK**.
 
 ### Step 3.2: Enable Windows Mobile Hotspot (For CEO's Smartphone)

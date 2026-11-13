@@ -151,6 +151,33 @@ echo -e "\n${YELLOW}[STEP 6/6] Launching Docker Compose Stack (Mosquitto + Edge 
 docker compose -f "$SCRIPT_DIR/docker-compose.yml" build
 docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d
 
+# ------------------------------------------------------------------------------
+# 7. Configure systemd Auto-Start Service for Reboot Resilience
+# ------------------------------------------------------------------------------
+echo -e "\n${YELLOW}[STEP 7/7] Installing Systemd Service for Auto-Start on System Boot...${NC}"
+cat <<EOF > /etc/systemd/system/weavesync-gateway.service
+[Unit]
+Description=WeaveSync SCADA Industrial Edge Gateway Service
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=$SCRIPT_DIR
+ExecStart=/usr/bin/docker compose -f $SCRIPT_DIR/docker-compose.yml up -d
+ExecStop=/usr/bin/docker compose -f $SCRIPT_DIR/docker-compose.yml down
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable weavesync-gateway.service
+echo -e "${GREEN}[OK] weavesync-gateway.service enabled for boot persistence.${NC}"
+
 echo -e "\n${BLUE}Waiting for services to report HEALTHY (10 seconds)...${NC}"
 sleep 10
 

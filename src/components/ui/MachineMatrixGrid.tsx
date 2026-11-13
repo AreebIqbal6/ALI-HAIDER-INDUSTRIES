@@ -427,15 +427,27 @@ export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({
                         </span>
                       </div>
                     ) : (
-                      /* Stopped under 5 minutes: show stop category and live elapsed downtime */
-                      <div className="flex items-center justify-between text-[9px] sm:text-[10px] font-semibold text-red-800 bg-red-100/80 border border-red-200 px-1.5 py-0.5 rounded">
-                        <div className="flex items-center gap-1 truncate">
-                          <AlertTriangle size={10} className="flex-shrink-0 text-red-600" />
-                          <span className="truncate">{formatStopCategoryLabel(loom.stopCategory)}</span>
+                      /* Stopped under 5 minutes: show stop category, live elapsed downtime, and quick Assign button */
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[9px] sm:text-[10px] font-semibold text-red-800 bg-red-100/80 border border-red-200 px-1.5 py-0.5 rounded">
+                          <div className="flex items-center gap-1 truncate">
+                            <AlertTriangle size={10} className="flex-shrink-0 text-red-600" />
+                            <span className="truncate">{formatStopCategoryLabel(loom.stopCategory)}</span>
+                          </div>
+                          <span className="font-mono tabular-nums text-[9px] font-bold text-red-700 ml-1 flex-shrink-0">
+                            ⏱️ {formatDowntime(elapsedMs)}
+                          </span>
                         </div>
-                        <span className="font-mono tabular-nums text-[9px] font-bold text-red-700 ml-1 flex-shrink-0">
-                          ⏱️ {formatDowntime(elapsedMs)}
-                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveLongStopMachine(loom);
+                          }}
+                          className="w-full text-[8px] sm:text-[9px] font-bold py-0.5 px-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Tag size={9} />
+                          <span>Assign Reason</span>
+                        </button>
                       </div>
                     )}
                   </div>
