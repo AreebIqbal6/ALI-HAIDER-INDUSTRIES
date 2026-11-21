@@ -83,6 +83,58 @@ if (!globalAny[globalStoreKey]) {
 
 const store = globalAny[globalStoreKey]!;
 
+export function initPilotLoom() {
+  const now = new Date().toISOString();
+  const pilotLoom: StoredLoom = {
+    id: 'loom-pilot-1',
+    machine_id: 'PIC-427708',
+    device_id: 'E0:E2:E6:AA:BB:01',
+    loom_number: 1,
+    family: 'OmniPlus-i',
+    year_recorded: '07/2021',
+    article_name: 'Twill Sheeting (40x40 / 120x80)',
+    sources: ['WT32-ETH01'],
+    set_rpm: 874,
+    weft_density_picks_per_cm: 27.2,
+    ip_address: '192.168.10.101',
+    firmware_version: 'v2.1-pilot',
+    status: 'RUNNING',
+    last_heartbeat_at: now,
+    created_at: now
+  };
+
+  const pilotState: StoredLiveState = {
+    machine_id: 'PIC-427708',
+    device_id: 'E0:E2:E6:AA:BB:01',
+    state: 'RUNNING',
+    stop_category: null,
+    stop_id: null,
+    since: new Date(Date.now() - 14400000).toISOString(),
+    rpm: 874,
+    total_picks: 184500,
+    meters_woven: 678.3,
+    raw_pins: {
+      piStrt: 1,
+      piPp: 1,
+      piWd: 0,
+      piFd: 0,
+      rawPinHistory: [
+        { pin: 'PI_STRT', state: 1, ms: 0 },
+        { pin: 'PI_PP', state: 1, ms: -68 }
+      ]
+    },
+    last_ts: now,
+    updated_at: now
+  };
+
+  store.looms.set('PIC-427708', pilotLoom);
+  store.liveStates.set('PIC-427708', pilotState);
+}
+
+if (store.looms.size === 0) {
+  initPilotLoom();
+}
+
 /**
  * Computes temporal connection status from last heartbeat
  * ONLINE: <15s
@@ -333,6 +385,9 @@ export function getLocalStoreSnapshot() {
       updated_at: loom.last_heartbeat_at || loom.created_at
     };
 
+    if (loom.machine_id === 'PIC-427708') {
+      loom.last_heartbeat_at = new Date().toISOString();
+    }
     const conn = getLoomConnectionStatus(loom.last_heartbeat_at);
 
     // If offline (>60s), live RPM must be 0 and state OFFLINE

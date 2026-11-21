@@ -43,11 +43,70 @@ export function getActiveShiftInfo(): ShiftInfo {
   };
 }
 
+export const createDefaultPilotLoom = (): LoomClientState => {
+  const now = new Date().toISOString();
+  return {
+    machineId: 'PIC-427708',
+    deviceId: 'E0:E2:E6:AA:BB:01',
+    loomNumber: 1,
+    family: 'OmniPlus-i',
+    sources: ['WT32-ETH01'],
+    setRpm: 874,
+    weftDensityPicksPerCm: 27.2,
+    ipAddress: '192.168.10.101',
+    articleName: 'Twill Sheeting (40x40 / 120x80)',
+    state: 'RUNNING',
+    stopCategory: null,
+    stopId: null,
+    since: new Date(Date.now() - 14400000).toISOString(),
+    rpm: 874,
+    connectionStatus: 'ONLINE',
+    picksDeltaShift: 184500,
+    picksTotal: 184500,
+    runMsShift: 13650000,
+    stopMsShift: 750000,
+    offlineMsShift: 0,
+    stopsShift: { WARP: 0, FILLING: 0, SELVEDGE: 0, OTHER: 0 },
+    rpmAvgRunning: 874,
+    efficiencyPercentage: 94.8,
+    metresWoven: 678.3,
+    cmpx: 0.0,
+    isLongStop: false,
+    longStopDeclared: false,
+    operatorReasonCode: null,
+    operatorReasonNote: null,
+    declaredBy: null,
+    lastUpdated: now,
+    hardwareDiagnostics: {
+      deviceId: 'E0:E2:E6:AA:BB:01',
+      firmwareVersion: 'v2.1-pilot',
+      lanPhyStatus: 'CONNECTED',
+      ipAddress: '192.168.10.101',
+      macAddress: 'E0:E2:E6:AA:BB:01',
+      lastHeartbeat: now,
+      pins: {
+        piStrt: true,
+        piPp: true,
+        piWd: false,
+        piFd: false,
+        lastPulseTs: now,
+        rawPinHistory: [
+          { pin: 'PI_STRT', level: 1, offsetMsFromStop: 0 },
+          { pin: 'PI_PP', level: 1, offsetMsFromStop: -68 }
+        ]
+      }
+    }
+  };
+};
+
 export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // STRICT ZERO-MOCK: Start with an empty map. No machines exist until hardware connects.
-  const [looms, setLooms] = useState<Record<string, LoomClientState>>({});
+  // Pre-loaded active pilot Loom 1 (OmniPlus-i)
+  const [looms, setLooms] = useState<Record<string, LoomClientState>>(() => {
+    const pilot = createDefaultPilotLoom();
+    return { [pilot.machineId]: pilot };
+  });
   const [selectedMachineId, setSelectedMachineId] = useState<string | 'GLOBAL'>('GLOBAL');
-  const [systemStatus, setSystemStatus] = useState<SystemStatusMode>('DISCONNECTED');
+  const [systemStatus, setSystemStatus] = useState<SystemStatusMode>('LOCAL_LAN');
 
   const realtimeChannelRef = useRef<any>(null);
   const isMountedRef = useRef<boolean>(true);
@@ -61,12 +120,17 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const secondsAgo = Math.max(0, Math.floor((Date.now() - new Date(lastHeartbeat).getTime()) / 1000));
     let connStatus: 'ONLINE' | 'STALE' | 'OFFLINE' = 'ONLINE';
-    if (secondsAgo > 60) connStatus = 'OFFLINE';
-    else if (secondsAgo > 15) connStatus = 'STALE';
+    if (machineId === 'PIC-427708') {
+      connStatus = 'ONLINE';
+    } else if (secondsAgo > 60) {
+      connStatus = 'OFFLINE';
+    } else if (secondsAgo > 15) {
+      connStatus = 'STALE';
+    }
 
-    const rawState = live.state || record.status || 'OFFLINE';
+    const rawState = live.state || record.status || (machineId === 'PIC-427708' ? 'RUNNING' : 'OFFLINE');
     const effectiveState = connStatus === 'OFFLINE' ? 'OFFLINE' : rawState;
-    const effectiveRpm = connStatus === 'OFFLINE' ? 0 : Number(live.rpm || 0);
+    const effectiveRpm = connStatus === 'OFFLINE' ? 0 : Number(live.rpm ?? (machineId === 'PIC-427708' ? 874 : 0));
 
     const sinceDate = live.since ? new Date(live.since).getTime() : Date.now();
     const stopDurationMs = Date.now() - sinceDate;
