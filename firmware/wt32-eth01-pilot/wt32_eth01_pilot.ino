@@ -27,6 +27,26 @@
  */
 
 #include <Arduino.h>
+
+#ifndef ETH_PHY_ADDR
+#define ETH_PHY_ADDR 1
+#endif
+#ifndef ETH_PHY_POWER
+#define ETH_PHY_POWER 16
+#endif
+#ifndef ETH_PHY_MDC
+#define ETH_PHY_MDC 23
+#endif
+#ifndef ETH_PHY_MDIO
+#define ETH_PHY_MDIO 18
+#endif
+#ifndef ETH_PHY_TYPE
+#define ETH_PHY_TYPE ETH_PHY_LAN8720
+#endif
+#ifndef ETH_CLK_MODE
+#define ETH_CLK_MODE ETH_CLOCK_GPIO0_IN
+#endif
+
 #include <ETH.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -128,31 +148,6 @@ inline bool isSignalActive(int rawPinLevel) {
 }
 
 // ------------------------------------------------------------------------------
-// Hardware Pulse Counter (PCNT) Interrupt & Refractory Filter
-// ------------------------------------------------------------------------------
-void IRAM_ATTR onPcntOverflow(void* arg) {
-  // PCNT counter limit reached or interrupt
-  unsigned long nowUs = micros();
-  if (nowUs - lastPickPulseTimeUs >= 5000) { // 5ms refractory debounce (max 200 picks/sec)
-    totalPicks++;
-    minutePicks++;
-    picksSinceLastStart++;
-    lastPickPulseTimeUs = nowUs;
-  }
-}
-
-// Fallback GPIO interrupt for Pick Pulse
-void IRAM_ATTR onPickPulseInterrupt() {
-  unsigned long nowUs = micros();
-  if (nowUs - lastPickPulseTimeUs >= 5000) {
-    totalPicks++;
-    minutePicks++;
-    picksSinceLastStart++;
-    lastPickPulseTimeUs = nowUs;
-  }
-}
-
-// ------------------------------------------------------------------------------
 // Initialize ESP32 Hardware Pulse Counter (PCNT) with Glitch Filter
 // ------------------------------------------------------------------------------
 void initHardwarePcnt() {
@@ -162,7 +157,7 @@ void initHardwarePcnt() {
   pcntConfig.ctrl_gpio_num = PCNT_PIN_NOT_USED;
   pcntConfig.channel = PCNT_CHANNEL_0;
   pcntConfig.unit = PCNT_UNIT_BEATUP;
-  // Count on falling or rising edge depending on polarity
+  // Count on active edge depending on polarity
   pcntConfig.pos_mode = OPTO_ACTIVE_LOW ? PCNT_COUNT_DIS : PCNT_COUNT_INC;
   pcntConfig.neg_mode = OPTO_ACTIVE_LOW ? PCNT_COUNT_INC : PCNT_COUNT_DIS;
   pcntConfig.lctrl_mode = PCNT_MODE_KEEP;
@@ -172,7 +167,7 @@ void initHardwarePcnt() {
 
   pcnt_unit_config(&pcntConfig);
 
-  // Configure hardware glitch filter (APBD clock cycles; ignores pulses shorter than ~2.5us)
+  // Configure hardware glitch filter (200 APB clock cycles ignores pulses shorter than ~2.5us)
   pcnt_set_filter_value(PCNT_UNIT_BEATUP, 200);
   pcnt_filter_enable(PCNT_UNIT_BEATUP);
 
@@ -180,10 +175,7 @@ void initHardwarePcnt() {
   pcnt_counter_clear(PCNT_UNIT_BEATUP);
   pcnt_counter_resume(PCNT_UNIT_BEATUP);
 
-  // Attach software interrupt as well for live accumulator increments
-  attachInterrupt(digitalPinToInterrupt(PIN_PI_PP), onPickPulseInterrupt, OPTO_ACTIVE_LOW ? FALLING : RISING);
-
-  Serial.println("[PCNT] Hardware Pulse Counter initialised on GPIO 32 with glitch filter.");
+  Serial.println("[PCNT] Hardware Pulse Counter initialised on GPIO 32 (Glitch Filter: 200 APB cycles).");
 }
 
 // ------------------------------------------------------------------------------
@@ -398,6 +390,16 @@ void setup() {
 // ------------------------------------------------------------------------------
 void loop() {
   unsigned long now = millis();
+
+  // 0. Harvest hardware pick pulses from PCNT register (1:1 glitch-filtered accumulation)
+  int16_t hwPicks = 0;
+  pcnt_get_counter_value(PCNT_UNIT_BEATUP, &hwPicks);
+  if (hwPicks > 0) {
+    pcnt_counter_clear(PCNT_UNIT_BEATUP);
+    totalPicks += hwPicks;
+    minutePicks += hwPicks;
+    picksSinceLastStart += hwPicks;
+  }
 
   // Read raw pin levels
   int rawStrt = digitalRead(PIN_PI_STRT);

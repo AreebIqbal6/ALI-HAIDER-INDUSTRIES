@@ -17,8 +17,22 @@ import {
   Zap, 
   Radio
 } from 'lucide-react';
-import { format } from 'date-fns';
 import { useRouter, usePathname } from 'next/navigation';
+
+const karachiTimeFull = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Karachi',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: true,
+});
+
+const karachiTimeShort = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Karachi',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+});
 
 export const Header: React.FC = () => {
   const { 
@@ -209,11 +223,11 @@ export const Header: React.FC = () => {
 
           {/* Shift Clock */}
           <div className="flex flex-col items-end leading-tight font-mono text-slate-300 pl-1">
-            <div className="text-[11px] sm:text-xs font-bold tabular-nums text-white">
-              <span className="inline sm:hidden">{format(time, 'hh:mm a')}</span>
-              <span className="hidden sm:inline">{format(time, 'hh:mm:ss a')}</span>
+            <div className="text-[11px] sm:text-xs font-bold tabular-nums text-white" suppressHydrationWarning>
+              <span className="inline sm:hidden" suppressHydrationWarning>{karachiTimeShort.format(time)}</span>
+              <span className="hidden sm:inline" suppressHydrationWarning>{karachiTimeFull.format(time)}</span>
             </div>
-            <div className="text-[9px] text-blue-400 font-bold hidden sm:block">
+            <div className="text-[9px] text-blue-400 font-bold hidden sm:block" suppressHydrationWarning>
               {shiftKpis.shift.type === 'SHIFT_A' ? 'Shift A' : 'Shift B'}
             </div>
           </div>

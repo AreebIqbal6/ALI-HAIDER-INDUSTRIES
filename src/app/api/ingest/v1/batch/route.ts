@@ -48,6 +48,18 @@ function isInMemoryDuplicate(msgId: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  // Optional Ingest API Key Guard (Active when INGEST_API_KEY is configured in environment)
+  const expectedKey = process.env.INGEST_API_KEY;
+  if (expectedKey) {
+    const providedKey = req.headers.get('x-weavesync-key');
+    if (providedKey !== expectedKey) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: Invalid or missing x-weavesync-key header' },
+        { status: 401 }
+      );
+    }
+  }
+
   try {
     const body = await req.json();
     

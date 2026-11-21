@@ -159,8 +159,10 @@ export function createInitialLoomState(def: typeof OFFICIAL_FLEET_DEFINITIONS[0]
 
   const currentRpm = isStopped ? 0 : def.setRpm;
   const picksTotal = 1540000 + (def.loomNumber * 22400);
-  const runMs = isStopped ? 18000000 : 25200000;
-  const stopMs = isStopped ? 8000000 : 800000;
+  const shift = getActiveShiftInfo();
+  const baseElapsed = Math.max(shift.elapsedMs, 600000);
+  const runMs = Math.floor(baseElapsed * (isStopped ? 0.692 : 0.969));
+  const stopMs = baseElapsed - runMs;
   const picksDeltaShift = Math.floor((runMs / 60000) * (def.setRpm * 0.98));
   const metresWoven = Number((picksDeltaShift / (def.weftDensity * 100.0)).toFixed(1));
   const totalStops = isStopped ? 4 : 2;
@@ -301,10 +303,9 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
 
     const totalStops = stopsWarp + stopsFilling + stopsSelvedge + stopsOther;
-    const totalMachineElapsedMs = shift.elapsedMs * Math.max(1, loomList.length);
-    const avgEfficiency = totalMachineElapsedMs > 0 
-      ? Number(((sumRunMs / totalMachineElapsedMs) * 100.0).toFixed(1)) 
-      : 88.5;
+    const avgEfficiency = (sumRunMs + sumStopMs) > 0 
+      ? Number(((sumRunMs / Math.max(1, sumRunMs + sumStopMs)) * 100.0).toFixed(1)) 
+      : 93.0;
     const avgRpm = sumRunMs > 0 
       ? Math.round(sumPicks / (sumRunMs / 60000.0)) 
       : 785;
