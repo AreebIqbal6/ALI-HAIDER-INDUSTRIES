@@ -1,13 +1,12 @@
 // Section 10: Data Contract v1 - Types & Envelopes for WeaveSync SCADA (Ali Haider Industries)
+// Strict Zero-Mock SCADA Specification
 
 export type SourceKind = 
-  | 'LDL' 
+  | 'WT32-ETH01' 
+  | 'EDGE_GATEWAY' 
   | 'BICOM_ETH' 
-  | 'BICOM_OPCUA' 
-  | 'BICOM_SERIAL' 
-  | 'SENSOR_KIT' 
-  | 'GATEWAY' 
-  | 'SIM';
+  | 'HARDWARE'
+  | 'SENSOR_KIT';
 
 export type StopCategory = 'WARP' | 'FILLING' | 'SELVEDGE' | 'OTHER';
 
@@ -28,12 +27,12 @@ export const OPERATOR_REASON_LABELS: Record<OperatorReasonCode, string> = {
   KNT: 'Knotting',
   ELE: 'Electrical Breakdown',
   MEC: 'Mechanical Breakdown',
-  BST: 'Beam Stop (Ghaat)',
+  BST: 'Beam Gaiting (BST)',
   DOF: 'Cloth Doffing',
   OLS: 'Other Long Stop',
 };
 
-export type LoomFamily = 'OmniPlus-i' | 'OmniPlus Summum' | 'OmniPlus 800' | 'Toyota JAT810';
+export type LoomFamily = 'OmniPlus-i' | 'OmniPlus Summum' | 'OmniPlus 800';
 
 export type SchemaVersion = 
   | 'ahi.loom.state/1.0'
@@ -47,13 +46,13 @@ export type SchemaVersion =
 // Canonical Message Envelope (Section 10.2)
 export interface CanonicalEnvelope<T = unknown> {
   schema: SchemaVersion;
-  msgId: string; // UUIDv7, globally unique idempotency key
-  seq: number; // Monotonic per (deviceId/adapter, stream)
-  machineId: string | null; // e.g. "PIC-427713" (null for gateway health)
-  gatewayId: string; // e.g. "AHI-GW-01"
+  msgId: string;
+  seq: number;
+  machineId: string | null;
+  gatewayId: string;
   source: SourceKind;
-  deviceId: string | null; // e.g. "LDL-24A1601C3F08" (null for BICOM)
-  ts: string; // ISO 8601 UTC with ms (e.g. "2026-11-03T05:15:30.123Z")
+  deviceId: string | null;
+  ts: string;
   tsQuality: 'SYNCED' | 'ESTIMATED';
   replayed: boolean;
   data: T;
@@ -63,8 +62,8 @@ export interface CanonicalEnvelope<T = unknown> {
 export interface LoomStateData {
   state: LoomStateKind;
   stopCategory: StopCategory | null;
-  stopId: string | null; // UUID linking to active stoppage occurrence
-  since: string; // ISO 8601 UTC when current state began
+  stopId: string | null;
+  since: string;
   rpm: number;
 }
 
@@ -90,50 +89,21 @@ export interface StopEndedEventData {
   stopId: string;
   stopCategory: StopCategory;
   durationMs: number;
-  failedStartAttempts: number; // runs < 5 picks before stopping again count as failed starts
+  failedStartAttempts: number;
   resolvedBy?: string;
   operatorReason?: OperatorReasonCode | null;
 }
 
-export interface AlarmRaisedEventData {
-  eventType: 'ALARM_RAISED';
-  alarmCode: string;
-  severity: 'WARNING' | 'CRITICAL';
-  description: string;
-}
-
-export interface CounterDiscontinuityEventData {
-  eventType: 'COUNTER_DISCONTINUITY';
-  previousPicks: number;
-  newPicks: number;
-  reason: string;
-}
-
-export interface SourceDiscrepancyEventData {
-  eventType: 'SOURCE_DISCREPANCY';
-  primarySource: SourceKind;
-  secondarySource: SourceKind;
-  field: string;
-  discrepancyDelta: number | string;
-}
-
-export type LoomEventData = 
-  | StopStartedEventData
-  | StopEndedEventData
-  | AlarmRaisedEventData
-  | CounterDiscontinuityEventData
-  | SourceDiscrepancyEventData;
-
-// 3. 1-Minute Counter Rollup (`ahi.loom.counters/1.0`)
+// 3. Counter Windows (`ahi.loom.counters/1.0`)
 export interface LoomCountersData {
-  windowStart: string; // ISO 8601 UTC
-  windowEnd: string;   // ISO 8601 UTC
+  windowStart: string;
+  windowEnd: string;
   picksDelta: number;
   picksTotal: number;
   runMs: number;
   stopMs: number;
   offlineMs: number;
-  stops: {
+  stops?: {
     WARP: number;
     FILLING: number;
     SELVEDGE: number;
@@ -142,122 +112,72 @@ export interface LoomCountersData {
   rpmAvgRunning: number;
 }
 
-// 4. Process Diagnostics (`ahi.loom.process/1.0`)
 export interface LoomProcessData {
-  warpTensionKn: number;
-  airPressureBar: number;
-  leftRelayBar: number;
-  rightRelayBar: number;
-  motorLoadPercent: number;
-  shedHeightMm?: number;
-}
-
-// 5. Device & Gateway Health (`ahi.device.health/1.0`, `ahi.gateway.health/1.0`)
-export interface DeviceHealthData {
-  status: 'ONLINE' | 'DEGRADED' | 'OFFLINE';
-  ipAddress?: string;
-  rssi?: number;
-  firmwareVersion?: string;
-  uptimeSeconds: number;
-  lastError?: string | null;
+  warpTensionKn?: number;
+  airPressureBar?: number;
 }
 
 export interface GatewayHealthData {
   gatewayId: string;
   status: 'ONLINE' | 'DEGRADED' | 'OFFLINE';
   connectedDevices: number;
-  activeLoomCount: number;
-  cpuLoadPercent: number;
-  memoryUsedMb: number;
-  bufferQueueSize: number;
+  activeLoomCount?: number;
+  cpuLoadPercent?: number;
+  memoryUsedMb?: number;
+  bufferQueueSize?: number;
+  uptimeSeconds?: number;
+}
+
+export interface DeviceHealthData {
+  deviceId: string;
+  status: 'ONLINE' | 'OFFLINE';
+  firmwareVersion: string;
+  ipAddress: string;
+  rssi?: number;
+  freeHeapBytes?: number;
   uptimeSeconds: number;
 }
 
-// 6. Registry Record (`ahi.registry/1.0`)
-export interface LoomRegistryRecord {
-  machineId: string; // e.g. "PIC-427708"
-  loomNumber: number; // 1 to 36+
-  family: LoomFamily;
-  yearRecorded: string;
-  sources: SourceKind[];
-  setRpm: number;
-  weftDensityPicksPerCm: number; // default 27.2 or 38.2
-  ipAddress?: string;
-  status: LoomStateKind;
-}
-
-// 7. Long Stop Declaration (Supervisor / Operator Action)
-export interface LongStopDeclaration {
-  stopId: string;
-  machineId: string;
-  loomNumber: number;
-  startedAt: string;
-  durationMs: number;
-  reasonCode: OperatorReasonCode;
-  reasonDescription: string;
-  declaredBy: string;
-  declaredAt: string;
-  notes?: string;
-}
-
-// 8. Hardware Node & Optocoupler Pin Diagnostics (XP_CBMP_P9 Tapping)
+// Hardware Diagnostics (Real XP_CBMP_P9 optocoupler telemetry)
 export interface PinTransitionEvent {
   pin: string;
   level: number;
-  offsetMsFromStop: number;
+  offsetMsFromStop?: number;
   timestampMs?: number;
 }
 
 export interface ParallelPinState {
-  piStrt: boolean; // Pin 9 -> ESP32 GPIO 4: Start / Run status (1 = RUNNING, 0 = STOPPED)
-  piPp: boolean;   // Pin 7 -> ESP32 GPIO 32 [Hardware PCNT]: Pick pulse counter
-  piWd: boolean;   // Pin 8 -> ESP32 GPIO 33: Warp stop detection
-  piFd: boolean;   // Pin 10 -> ESP32 GPIO 14: Filling / Weft stop detection
-  piLd: boolean;   // Pin 6: Leno / Selvedge stop detection
-  lastPulseTs: string;
+  piStrt: boolean;
+  piPp: boolean;
+  piWd: boolean;
+  piFd: boolean;
+  piLd?: boolean;
+  lastPulseTs?: string;
   rawPinHistory?: PinTransitionEvent[];
-  classificationWindow: {
-    windowStartRelMs: number; // -300ms
-    windowEndRelMs: number;   // +1000ms
-    detectedReason: StopCategory;
-    priorityOrder: string[];   // ['FILLING', 'WARP', 'SELVEDGE', 'OTHER']
-    confidence: number;       // e.g. 0.99
-    isWithinWindow: boolean;
-  };
 }
 
 export interface HardwareDiagnostics {
-  isPilotNode: boolean; // True for Loom 1 (PIC-427708)
-  firmwareVersion: string; // e.g. "AHI-WT32-v1.0.4"
-  lanPhyStatus: 'CONNECTED_100MBPS' | 'LINK_DOWN';
+  deviceId: string;
+  firmwareVersion: string;
+  lanPhyStatus: 'CONNECTED' | 'LINK_DOWN';
   ipAddress: string;
   macAddress: string;
-  framBuffer: {
-    totalBytes: number;
-    usedBytes: number;
-    wearPct: number;
-    recordsBuffered: number;
-  };
-  outbox: {
-    pendingPackets: number;
-    droppedPackets: number;
-    inflight: boolean;
-    lastAckTs: string | null;
-    latencyMs: number;
-  };
-  optocouplerPins: ParallelPinState;
+  lastHeartbeat: string;
+  latencyMs?: number;
+  pins: ParallelPinState;
 }
 
-// Unified Client Model for UI Components (backed by Canonical Envelopes)
+// Unified Client Model for UI Components
 export interface LoomClientState {
   machineId: string;
-  loomNumber: number;
-  family: LoomFamily;
-  sources: SourceKind[];
+  deviceId?: string;
+  loomNumber: number | null;
+  family: string;
+  sources: string[];
   setRpm: number;
   weftDensityPicksPerCm: number;
-  ipAddress: string;
-  isPilotNode?: boolean; // Highlighted badge for WT32-ETH01 hardware node
+  ipAddress?: string;
+  articleName?: string;
   
   // Real-time State
   state: LoomStateKind;
@@ -265,8 +185,9 @@ export interface LoomClientState {
   stopId: string | null;
   since: string;
   rpm: number;
+  connectionStatus: 'ONLINE' | 'STALE' | 'OFFLINE';
   
-  // Shift Counters & Process
+  // Shift Counters & Production
   picksDeltaShift: number;
   picksTotal: number;
   runMsShift: number;
@@ -281,21 +202,12 @@ export interface LoomClientState {
   rpmAvgRunning: number;
   efficiencyPercentage: number;
   metresWoven: number;
-  cmpx: number; // Stops per 10^5 picks
+  cmpx: number;
   
-  // Diagnostics
-  warpTensionKn: number;
-  airPressureBar: number;
-  subsystems: {
-    sumoMotorStatus: 'HEALTHY' | 'OVERLOAD' | 'OFFLINE';
-    fd1Detector: 'OK' | 'FAULT';
-    fd2Detector: 'OK' | 'FAULT';
-    leftRelayBar: number;
-    rightRelayBar: number;
-  };
+  // Hardware Diagnostics (Only real telemetry)
   hardwareDiagnostics?: HardwareDiagnostics;
 
-  // Long Stop Declaration Tracking (> 5 mins)
+  // Stoppage Reason Logging
   isLongStop: boolean;
   longStopDeclared: boolean;
   operatorReasonCode?: OperatorReasonCode | null;
@@ -305,7 +217,7 @@ export interface LoomClientState {
   lastUpdated: string;
 }
 
-// Shift Definition (Section 1 & 11)
+// Shift Information (PKT 12-Hour shifts)
 export type ShiftType = 'SHIFT_A' | 'SHIFT_B';
 
 export interface ShiftInfo {
@@ -314,22 +226,23 @@ export interface ShiftInfo {
   startTimeUtc: string;
   endTimeUtc: string;
   elapsedMs: number;
-  totalDurationMs: number; // 12 hours = 43,200,000 ms
+  totalDurationMs: number;
 }
 
 export interface ShiftKpiSummary {
   shift: ShiftInfo;
-  averageEfficiency: number;
+  averageEfficiency: number | null;
   averageRpm: number;
   totalPicks: number;
   totalMetresWoven: number;
   activeLoomsCount: number;
+  totalLoomsCount: number;
   stoppedLoomsCount: number;
   offlineLoomsCount: number;
   totalStops: number;
-  cmpxAverage: number; // Stops per 10^5 picks
-  mtbfMinutes: number; // Mean Time Between Failures
-  mttrMinutes: number; // Mean Time To Repair
+  cmpxAverage: number;
+  mtbfMinutes: number;
+  mttrMinutes: number;
   stopsByCategory: {
     WARP: number;
     FILLING: number;
@@ -338,58 +251,34 @@ export interface ShiftKpiSummary {
   };
 }
 
-export interface AmbientTelemetryState {
-  mainAirPressureBar: number;
-  hallTemperatureCelsius: number;
-  hallHumidityPercentage: number;
-  lastUpdated: string;
-}
-
-export interface SolarTelemetryState {
-  currentGenerationKw: number;
-  dailyYieldKwh: number;
-  factoryLoadKw: number;
-}
+export type SystemStatusMode = 'CLOUD_LIVE' | 'LOCAL_LAN' | 'DISCONNECTED';
 
 export interface TelemetryContextType {
-  looms: Record<string, LoomClientState>; // Keyed by machineId (e.g. "PIC-427708")
+  looms: Record<string, LoomClientState>;
   selectedMachineId: string | 'GLOBAL';
   setSelectedMachineId: (id: string | 'GLOBAL') => void;
-  ambient: AmbientTelemetryState;
-  solar: SolarTelemetryState;
+  systemStatus: SystemStatusMode;
   shiftKpis: ShiftKpiSummary;
-  gatewayHealth: GatewayHealthData;
-  connectionStatus: 'CONNECTED_REALTIME' | 'EDGE_GATEWAY_BUS' | 'CONNECTING';
-  isLiveGateway: boolean;
-  mockMode?: boolean;
-  demoMode: 'CLOUD' | 'LOCAL';
-  setDemoMode: (mode: 'CLOUD' | 'LOCAL') => void;
   
-  // Actions
-  assignLongStopReason: (
+  // Real Operational Actions
+  assignStopReason: (
     machineId: string, 
-    stopId: string, 
+    stopId: string | null, 
     reasonCode: OperatorReasonCode, 
     notes?: string, 
     operatorName?: string
   ) => Promise<boolean>;
   
-  addMachine: (
+  configureLoom: (
     machineId: string,
-    loomNumber: number,
-    family: LoomFamily,
-    sources: SourceKind[],
-    setRpm?: number,
-    weftDensity?: number,
-    ipAddress?: string
-  ) => Promise<string>;
+    updates: {
+      loomNumber?: number;
+      family?: string;
+      articleName?: string;
+      setRpm?: number;
+      weftDensity?: number;
+    }
+  ) => Promise<boolean>;
   
-  acknowledgeStop: (machineId: string, note?: string) => void;
-  dispatchTechnician: (machineId: string, technicianName: string) => void;
-
-  // Pilot Demo Secret Weapon Controls
-  triggerSimulatedStop: (machineId: string, category: 'WARP' | 'FILLING' | 'SELVEDGE' | 'LONG_STOP') => Promise<void>;
-  triggerSimulatedFailedStart: (machineId: string) => Promise<void>;
-  triggerSimulatedLongStop: (machineId: string) => Promise<void>;
-  clearSimulatedStop: (machineId: string) => Promise<void>;
+  refreshTelemetry: () => Promise<void>;
 }

@@ -4,436 +4,218 @@ import { useTelemetry } from '../contexts/TelemetryContext';
 import { 
   ArrowLeft, 
   Activity, 
-  Cloud, 
-  List, 
-  Cpu, 
-  Gauge, 
-  AlertCircle, 
-  CheckCircle2, 
   Clock, 
-  Tag,
-  Zap
+  CheckCircle2, 
+  Settings2,
+  Gauge,
+  Tag
 } from 'lucide-react';
-import { SensorDashboard } from '../components/omniplus/SensorDashboard';
-import { ClimateMonitoring } from '../components/omniplus/ClimateMonitoring';
-import { ActionCenter } from '../components/omniplus/ActionCenter';
 import { HardwarePinInspector } from '../components/omniplus/HardwarePinInspector';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { OPERATOR_REASON_LABELS } from '../types';
-
-type Tab = 'subsystems' | 'hardware' | 'sensors' | 'climate' | 'logs';
 
 export const LoomDashboard: React.FC = () => {
   const { 
     looms, 
     selectedMachineId, 
-    setSelectedMachineId, 
-    acknowledgeStop, 
-    shiftKpis 
+    setSelectedMachineId 
   } = useTelemetry();
 
-  const [activeTab, setActiveTab] = useState<Tab>('subsystems');
+  const [activeTab, setActiveTab] = useState<'operations' | 'hardware'>('operations');
 
   const loom = selectedMachineId !== 'GLOBAL' ? looms[selectedMachineId] : null;
 
   if (!loom) {
     return (
-      <div className="p-6 sm:p-8 text-center text-slate-800 flex flex-col items-center justify-center min-h-[50vh]">
-        <p className="mb-4 font-semibold text-sm">No machine selected or machine not found on bus.</p>
-        <button
+      <div className="p-8 text-center bg-zinc-50 min-h-[calc(100vh-56px)] flex flex-col items-center justify-center">
+        <p className="text-sm font-medium text-zinc-600 mb-4">
+          Machine not found or no telemetry received.
+        </p>
+        <Button
           onClick={() => setSelectedMachineId('GLOBAL')}
-          className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer shadow-sm active:scale-95"
+          variant="outline"
+          size="sm"
         >
-          Return to 36-Machine Matrix
-        </button>
+          Return to Floor Fleet
+        </Button>
       </div>
     );
   }
 
   const isRunning = loom.state === 'RUNNING';
   const isStopped = loom.state === 'STOPPED';
-
-  const formatStopCategory = (cat: string | null) => {
-    switch (cat) {
-      case 'WARP': return 'Warp Drop Wire Contact (TSF Load-Cell Break)';
-      case 'FILLING': return 'Weft Optical Detector FD1 (Arrival Failure)';
-      case 'SELVEDGE': return 'ELSY Leno Selvedge Break';
-      case 'OTHER': return 'Other Mechanical / Air Stoppage';
-      default: return 'Machine Operating Normally';
-    }
-  };
+  const isOffline = loom.state === 'OFFLINE';
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-56px)] bg-[#e8ebf0]">
-      {/* Top Breadcrumb & Inspection Header (Mobile-Optimized) */}
-      <div className="bg-white border-b border-slate-300 px-3 sm:px-4 py-2.5 sm:py-3 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          <button
+    <div className="p-4 sm:p-6 min-h-[calc(100vh-56px)] bg-zinc-50 text-zinc-950">
+      {/* Top Breadcrumb & Status Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 bg-white p-4 rounded-lg border border-zinc-200 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setSelectedMachineId('GLOBAL')}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+            className="text-xs text-zinc-600 hover:text-zinc-950 px-2"
           >
-            <ArrowLeft size={15} />
-            <span className="hidden xs:inline">Fleet</span> Grid
-          </button>
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Fleet
+          </Button>
 
-          <div className="h-5 w-px bg-slate-200 hidden xs:block" />
+          <div className="h-4 w-px bg-zinc-200" />
 
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-            <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-none">
-              Loom #{loom.loomNumber}
-            </h1>
-            <span className="text-[11px] sm:text-xs font-mono font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-              {loom.machineId}
-            </span>
-            <span className="text-[10px] sm:text-xs font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-              {loom.family}
-            </span>
-            <span className="text-[9px] sm:text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-              {loom.sources.join('+')}
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-lg font-bold text-zinc-950">
+                {loom.loomNumber ? `Loom ${loom.loomNumber}` : loom.machineId}
+              </h1>
+              <Badge variant="outline" className="font-mono text-xs">
+                {loom.machineId}
+              </Badge>
+              <Badge variant="secondary" className="text-xs">
+                {loom.family}
+              </Badge>
+            </div>
+            <span className="text-xs text-zinc-500 block mt-0.5">
+              Article: {loom.articleName || 'Standard Weave'}
             </span>
           </div>
         </div>
 
-        {/* Live Status Pill & Safe Acknowledge Action */}
-        <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
-          <div className={`px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-extrabold flex items-center gap-1.5 ${
-            isRunning 
-              ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' 
-              : 'bg-red-50 text-red-800 border border-red-300 animate-pulse'
-          }`}>
-            <span className={`w-2 h-2 rounded-full ${isRunning ? 'bg-emerald-500' : 'bg-red-500'}`} />
-            <span>{isRunning ? 'RUNNING' : `STOPPED: ${loom.stopCategory || 'UNKNOWN'}`}</span>
-          </div>
-
-          {!isRunning && (
-            <button
-              onClick={() => acknowledgeStop(loom.machineId)}
-              className="px-2.5 py-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-lg text-[11px] sm:text-xs font-bold shadow-sm transition-colors cursor-pointer"
-            >
-              Acknowledge
-            </button>
+        <div className="flex items-center gap-2">
+          {isRunning && <Badge variant="running">Running</Badge>}
+          {isStopped && (
+            <Badge variant="stopped">
+              {loom.stopCategory ? `${loom.stopCategory} Stop` : 'Stopped'}
+            </Badge>
           )}
-
-          <div className="text-[10px] font-mono text-slate-400 hidden lg:block">
-            {loom.setRpm} RPM Set • {loom.weftDensityPicksPerCm} p/cm • {loom.ipAddress}
-          </div>
+          {isOffline && <Badge variant="offline">Offline</Badge>}
         </div>
       </div>
 
-      {/* Navigation Sub-Tabs (Horizontal Swipe on Phone) */}
-      <div className="bg-white px-2 sm:px-4 border-b border-slate-200 flex gap-1 sm:gap-2 overflow-x-auto scrollbar-none py-1">
-        <button
-          onClick={() => setActiveTab('subsystems')}
-          className={`flex items-center gap-1.5 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
-            activeTab === 'subsystems'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Cpu size={15} />
-          <span>Subsystems</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('hardware')}
-          className={`flex items-center gap-1.5 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
-            activeTab === 'hardware'
-              ? 'bg-amber-600 text-white shadow-sm'
-              : 'text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100'
-          }`}
-        >
-          <Zap size={15} className={activeTab === 'hardware' ? 'text-white' : 'text-amber-600'} />
-          <span>XP_CBMP_P9 Pin Inspector</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('sensors')}
-          className={`flex items-center gap-1.5 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
-            activeTab === 'sensors'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Activity size={15} />
-          <span>Sensors & Dynamics</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('climate')}
-          className={`flex items-center gap-1.5 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
-            activeTab === 'climate'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Cloud size={15} />
-          <span>Shed Climate</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('logs')}
-          className={`flex items-center gap-1.5 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
-            activeTab === 'logs'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <List size={15} />
-          <span>Logbook & Dispatch</span>
-        </button>
-      </div>
+      {/* Tabs: Operations vs Hardware Diagnostics */}
+      <Tabs defaultValue="operations" value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="operations">Production Operations</TabsTrigger>
+          <TabsTrigger value="hardware">Hardware Diagnostics</TabsTrigger>
+        </TabsList>
 
-      {/* Main Tab Views */}
-      <div className="flex-1 overflow-y-auto overscroll-y-contain p-2.5 sm:p-5">
-        {activeTab === 'subsystems' && (
-          <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto">
-            {/* Stoppage Banner with Long Stop Declaration info */}
-            {isStopped && (
-              <div className="p-3 sm:p-4 bg-red-100/90 border border-red-300 rounded-xl sm:rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-sm">
-                <div className="flex items-start gap-2.5">
-                  <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={18} />
-                  <div>
-                    <h3 className="text-xs sm:text-sm font-bold text-red-900 leading-tight">
-                      Active Stoppage: {loom.stopCategory || 'WARP'}
-                    </h3>
-                    <p className="text-[11px] text-red-800 mt-0.5">
-                      Triggered Cause: <strong>{formatStopCategory(loom.stopCategory)}</strong>. Since: {new Date(loom.since).toLocaleTimeString()}.
-                    </p>
-                  </div>
+        {/* OPERATIONS TAB */}
+        <TabsContent value="operations" className="space-y-4">
+          {/* Top 4 Metric Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <Card className="p-4 bg-white border-zinc-200">
+              <span className="text-xs text-zinc-500 font-medium uppercase tracking-wider block mb-1">
+                Live Speed
+              </span>
+              <div className="text-2xl sm:text-3xl font-mono font-bold text-zinc-950 tabular-nums">
+                {loom.rpm} <span className="text-xs font-sans text-zinc-500 font-normal">RPM</span>
+              </div>
+              <span className="text-xs text-zinc-500 mt-1 block">
+                Setpoint: {loom.setRpm} RPM
+              </span>
+            </Card>
+
+            <Card className="p-4 bg-white border-zinc-200">
+              <span className="text-xs text-zinc-500 font-medium uppercase tracking-wider block mb-1">
+                Shift Efficiency
+              </span>
+              <div className="text-2xl sm:text-3xl font-mono font-bold text-zinc-950 tabular-nums">
+                {loom.efficiencyPercentage.toFixed(1)}%
+              </div>
+              <span className="text-xs text-zinc-500 mt-1 block">
+                Runtime ratio
+              </span>
+            </Card>
+
+            <Card className="p-4 bg-white border-zinc-200">
+              <span className="text-xs text-zinc-500 font-medium uppercase tracking-wider block mb-1">
+                Total Shift Picks
+              </span>
+              <div className="text-2xl sm:text-3xl font-mono font-bold text-zinc-950 tabular-nums">
+                {loom.picksTotal.toLocaleString()}
+              </div>
+              <span className="text-xs text-zinc-500 mt-1 block">
+                Hardware PCNT counted
+              </span>
+            </Card>
+
+            <Card className="p-4 bg-white border-zinc-200">
+              <span className="text-xs text-zinc-500 font-medium uppercase tracking-wider block mb-1">
+                Output Woven
+              </span>
+              <div className="text-2xl sm:text-3xl font-mono font-bold text-zinc-950 tabular-nums">
+                {loom.metresWoven.toFixed(1)} <span className="text-xs font-sans text-zinc-500 font-normal">m</span>
+              </div>
+              <span className="text-xs text-zinc-500 mt-1 block">
+                Density: {loom.weftDensityPicksPerCm} picks/cm
+              </span>
+            </Card>
+          </div>
+
+          {/* Stoppage Reason Status (If Stopped) */}
+          {isStopped && (
+            <Card className="p-4 bg-rose-50/30 border-rose-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-rose-950 flex items-center gap-1.5">
+                    <Clock className="h-4 w-4 text-rose-700" />
+                    <span>Loom Stoppage Active</span>
+                  </h3>
+                  <p className="text-xs text-zinc-600 mt-0.5">
+                    Category: {loom.stopCategory || 'Unclassified'} · Since: {new Date(loom.since).toLocaleTimeString()}
+                  </p>
                 </div>
 
                 {loom.operatorReasonCode ? (
-                  <div className="self-start sm:self-auto px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 text-[11px] font-mono font-bold text-amber-900 flex items-center gap-1">
-                    <CheckCircle2 size={13} className="text-amber-700" />
-                    <span>[{loom.operatorReasonCode}] {OPERATOR_REASON_LABELS[loom.operatorReasonCode]}</span>
-                  </div>
-                ) : loom.isLongStop ? (
-                  <div className="self-start sm:self-auto flex items-center gap-1.5 text-xs font-bold text-red-700 animate-pulse">
-                    <Tag size={14} />
-                    <span>Long Stop (&gt;5m) - Reason Required</span>
-                  </div>
-                ) : null}
+                  <Badge variant="outline" className="bg-white text-zinc-800 text-xs font-medium">
+                    Reason: [{loom.operatorReasonCode}] {OPERATOR_REASON_LABELS[loom.operatorReasonCode]}
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive" className="text-xs font-medium">
+                    No reason assigned yet
+                  </Badge>
+                )}
               </div>
-            )}
+            </Card>
+          )}
 
-            {/* Quick KPI Overview (Section 11 Verified Formulas) - 2x2 on Mobile */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-              <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Pick Rate (RPM)
-                </span>
-                <div className="text-xl sm:text-3xl font-black font-mono tabular-nums text-slate-900 mt-0.5">
-                  {loom.rpm}
-                </div>
-                <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5">
-                  Rated: {loom.setRpm} Max
-                </span>
+          {/* Stoppage Breakdown Card */}
+          <Card className="p-4 bg-white border-zinc-200">
+            <CardHeader className="p-0 pb-3 mb-3 border-b border-zinc-100">
+              <CardTitle className="text-xs font-semibold text-zinc-900 uppercase tracking-wider">
+                Shift Stoppage Breakdown
+              </CardTitle>
+            </CardHeader>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center font-mono">
+              <div className="p-3 rounded-md bg-zinc-50 border border-zinc-100">
+                <span className="text-xs text-zinc-500 font-sans block">Warp Stops</span>
+                <span className="text-xl font-bold text-zinc-900">{loom.stopsShift?.WARP || 0}</span>
               </div>
-
-              <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Efficiency
-                </span>
-                <div className="text-xl sm:text-3xl font-black font-mono tabular-nums text-emerald-600 mt-0.5">
-                  {loom.efficiencyPercentage.toFixed(1)}%
-                </div>
-                <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono block mt-0.5">
-                  Run: {(loom.runMsShift / 3600000).toFixed(1)}h
-                </span>
+              <div className="p-3 rounded-md bg-zinc-50 border border-zinc-100">
+                <span className="text-xs text-zinc-500 font-sans block">Weft / Filling</span>
+                <span className="text-xl font-bold text-zinc-900">{loom.stopsShift?.FILLING || 0}</span>
               </div>
-
-              <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Metres Woven
-                </span>
-                <div className="text-xl sm:text-3xl font-black font-mono tabular-nums text-slate-900 mt-0.5">
-                  {loom.metresWoven.toFixed(1)} m
-                </div>
-                <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono block mt-0.5">
-                  {loom.picksDeltaShift.toLocaleString()} picks
-                </span>
+              <div className="p-3 rounded-md bg-zinc-50 border border-zinc-100">
+                <span className="text-xs text-zinc-500 font-sans block">Selvedge</span>
+                <span className="text-xl font-bold text-zinc-900">{loom.stopsShift?.SELVEDGE || 0}</span>
               </div>
-
-              <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                  CMPX (Stops/10⁵)
-                </span>
-                <div className="text-xl sm:text-3xl font-black font-mono tabular-nums text-slate-900 mt-0.5">
-                  {loom.cmpx.toFixed(2)}
-                </div>
-                <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5">
-                  Warp: {loom.stopsShift.WARP} | Weft: {loom.stopsShift.FILLING}
-                </span>
+              <div className="p-3 rounded-md bg-zinc-50 border border-zinc-100">
+                <span className="text-xs text-zinc-500 font-sans block">Other</span>
+                <span className="text-xl font-bold text-zinc-900">{loom.stopsShift?.OTHER || 0}</span>
               </div>
             </div>
+          </Card>
+        </TabsContent>
 
-            {/* Live XP_CBMP_P9 Optocoupler Pin Inspector */}
-            <HardwarePinInspector loom={loom} />
-
-            {/* Subsystem Hardware Diagnostics Matrix */}
-            <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3.5 sm:p-5 shadow-sm">
-              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
-                <Cpu size={16} className="text-blue-600" />
-                <span>Picanol Subsystem Diagnostics</span>
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3.5">
-                {/* Sumo Motor */}
-                <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-700">Sumo Main Motor</span>
-                    <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
-                      <CheckCircle2 size={11} /> {loom.subsystems.sumoMotorStatus}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">Direct-drive switched reluctance drive with dynamic brake.</p>
-                </div>
-
-                {/* ELO Electronic Let-Off */}
-                <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-700">ELO Warp Tension</span>
-                    <span className="font-mono font-bold text-slate-900 tabular-nums text-xs sm:text-sm">
-                      {loom.warpTensionKn.toFixed(2)} kN
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">TSF load-cell feedback. Target range: 1.70 - 2.20 kN.</p>
-                </div>
-
-                {/* Air-Jet Main Line Pressure */}
-                <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-700">Air-Jet Nozzle Line</span>
-                    <span className={`font-mono font-bold tabular-nums text-xs sm:text-sm ${
-                      loom.airPressureBar < 6.5 ? 'text-red-600 font-black' : 'text-slate-900'
-                    }`}>
-                      {loom.airPressureBar.toFixed(2)} Bar
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">Supply line for insertion nozzles (Critical min: 6.5 Bar).</p>
-                </div>
-
-                {/* Optical Weft Detectors FD1 / FD2 */}
-                <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-700">Weft Sensor FD1 (Arrival)</span>
-                    <span className={`inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded ${
-                      loom.subsystems.fd1Detector === 'OK' 
-                        ? 'text-emerald-700 bg-emerald-100' 
-                        : 'text-red-700 bg-red-100'
-                    }`}>
-                      <CheckCircle2 size={11} />
-                      {loom.subsystems.fd1Detector}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">Photoelectric eye checking pick arrival at right selvedge.</p>
-                </div>
-
-                <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-700">Weft Sensor FD2 (Clamping)</span>
-                    <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
-                      <CheckCircle2 size={11} /> {loom.subsystems.fd2Detector}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">Secondary optical sensor detecting broken or loose pick tails.</p>
-                </div>
-
-                {/* Relay Nozzle Buffer Tanks */}
-                <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-700">Relay Buffer Tanks</span>
-                    <span className="font-mono font-bold text-slate-900 tabular-nums text-xs sm:text-sm">
-                      {loom.subsystems.leftRelayBar} / {loom.subsystems.rightRelayBar} Bar
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">Intermediate air buffer tanks powering relay nozzle valves.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Current Shift Downtime Logs */}
-            <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3.5 sm:p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <Clock size={16} className="text-slate-500" />
-                  <span>Shift Downtime Log ({loom.machineId})</span>
-                </h3>
-                <span className="text-[10px] font-mono text-slate-400">{shiftKpis.shift.name}</span>
-              </div>
-
-              <div className="overflow-x-auto scrollbar-none -mx-3.5 sm:mx-0 px-3.5 sm:px-0">
-                <table className="w-full text-left text-xs min-w-[500px]">
-                  <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[9px] border-b border-slate-200">
-                    <tr>
-                      <th className="py-2 px-2.5">Time</th>
-                      <th className="py-2 px-2.5">Category</th>
-                      <th className="py-2 px-2.5">Duration</th>
-                      <th className="py-2 px-2.5">Reason Code</th>
-                      <th className="py-2 px-2.5">Action Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
-                    {/* Active Stoppage Row (if currently stopped) */}
-                    {isStopped && (
-                      <tr className="bg-red-50/60 font-semibold">
-                        <td className="py-2.5 px-2.5 font-mono text-red-700">
-                          {new Date(loom.since).toLocaleTimeString()}
-                        </td>
-                        <td className="py-2.5 px-2.5 font-bold text-red-600">
-                          {loom.stopCategory || 'WARP'} (ACTIVE)
-                        </td>
-                        <td className="py-2.5 px-2.5 font-mono text-red-700 font-bold">
-                          {Math.floor((Date.now() - new Date(loom.since).getTime()) / 60000)}m {Math.floor(((Date.now() - new Date(loom.since).getTime()) % 60000) / 1000)}s
-                        </td>
-                        <td className="py-2.5 px-2.5 font-mono text-slate-800">
-                          {loom.operatorReasonCode ? `[${loom.operatorReasonCode}] ${OPERATOR_REASON_LABELS[loom.operatorReasonCode]}` : <span className="text-amber-600 font-bold">Pending (&gt;5m)</span>}
-                        </td>
-                        <td className="py-2.5 px-2.5 text-red-700 font-bold">
-                          {loom.operatorReasonCode ? 'Declared by Floor' : 'Technician Inspecting'}
-                        </td>
-                      </tr>
-                    )}
-
-                    {/* Historical Shift Stoppages for this machine */}
-                    {(loom.stopsShift.WARP > (isStopped && loom.stopCategory === 'WARP' ? 1 : 0)) && (
-                      <tr>
-                        <td className="py-2.5 px-2.5 font-mono text-slate-600">11:45:10</td>
-                        <td className="py-2.5 px-2.5 font-bold text-red-600">WARP (Drop Wire)</td>
-                        <td className="py-2.5 px-2.5 font-mono">01m 24s</td>
-                        <td className="py-2.5 px-2.5 font-mono text-slate-700">[KNT] Knotting</td>
-                        <td className="py-2.5 px-2.5 text-emerald-700 font-semibold">Tied by Weaver</td>
-                      </tr>
-                    )}
-
-                    {(loom.stopsShift.FILLING > (isStopped && loom.stopCategory === 'FILLING' ? 1 : 0)) && (
-                      <tr>
-                        <td className="py-2.5 px-2.5 font-mono text-slate-600">09:30:22</td>
-                        <td className="py-2.5 px-2.5 font-bold text-amber-600">FILLING (Weft FD1)</td>
-                        <td className="py-2.5 px-2.5 font-mono">00m 48s</td>
-                        <td className="py-2.5 px-2.5 font-mono text-slate-500">-</td>
-                        <td className="py-2.5 px-2.5 text-slate-600">Prewinder Cleared</td>
-                      </tr>
-                    )}
-
-                    {!isStopped && loom.stopsShift.WARP === 0 && loom.stopsShift.FILLING === 0 && loom.stopsShift.SELVEDGE === 0 && (
-                      <tr>
-                        <td colSpan={5} className="py-4 text-center text-slate-500 font-medium text-xs">
-                          ✓ Machine running with continuous production during active shift ({shiftKpis.shift.name}).
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'hardware' && (
-          <div className="max-w-5xl mx-auto">
-            <HardwarePinInspector loom={loom} />
-          </div>
-        )}
-        {activeTab === 'sensors' && <SensorDashboard machineId={loom.machineId} />}
-        {activeTab === 'climate' && <ClimateMonitoring />}
-        {activeTab === 'logs' && <ActionCenter machineId={loom.machineId} loomNumber={loom.loomNumber} />}
-      </div>
+        {/* HARDWARE DIAGNOSTICS TAB */}
+        <TabsContent value="hardware">
+          <HardwarePinInspector loom={loom} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

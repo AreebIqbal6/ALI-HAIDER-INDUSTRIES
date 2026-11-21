@@ -2,733 +2,514 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   LoomClientState, 
-  LoomFamily, 
-  SourceKind, 
   OperatorReasonCode, 
   OPERATOR_REASON_LABELS 
 } from '../../types';
 import { 
-  Plus, 
-  Cpu, 
-  AlertTriangle, 
+  Radio,
   Clock, 
-  CheckCircle2, 
   Tag, 
-  Search,
-  ArrowRight,
-  Filter,
-  X,
-  Zap
+  Settings2,
+  ChevronRight,
+  Server
 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from './card';
+import { Badge } from './badge';
+import { Button } from './button';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter 
+} from './dialog';
 
 interface MachineMatrixGridProps {
   looms: Record<string, LoomClientState>;
   onSelectLoom: (machineId: string) => void;
-  onAddMachine?: (
+  onAssignStopReason: (
     machineId: string,
-    loomNumber: number,
-    family: LoomFamily,
-    sources: SourceKind[],
-    setRpm?: number,
-    weftDensity?: number,
-    ipAddress?: string
-  ) => Promise<string>;
-  onAssignLongStopReason: (
-    machineId: string,
-    stopId: string,
+    stopId: string | null,
     reasonCode: OperatorReasonCode,
     notes?: string,
     operatorName?: string
   ) => Promise<boolean>;
+  onConfigureLoom: (
+    machineId: string,
+    updates: {
+      loomNumber?: number;
+      family?: string;
+      articleName?: string;
+      setRpm?: number;
+      weftDensity?: number;
+    }
+  ) => Promise<boolean>;
 }
 
-type FilterState = 'ALL' | 'RUNNING' | 'STOPPED' | 'LONG_STOP' | 'OMNI_I' | 'OMNI_800' | 'SUMMUM';
+type FilterState = 'ALL' | 'RUNNING' | 'STOPPED' | 'OFFLINE';
 
 export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({ 
   looms, 
   onSelectLoom,
-  onAddMachine,
-  onAssignLongStopReason
+  onAssignStopReason,
+  onConfigureLoom
 }) => {
   const [activeFilter, setActiveFilter] = useState<FilterState>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [activeLongStopMachine, setActiveLongStopMachine] = useState<LoomClientState | null>(null);
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+  const [stopModalLoom, setStopModalLoom] = useState<LoomClientState | null>(null);
+  const [configModalLoom, setConfigModalLoom] = useState<LoomClientState | null>(null);
 
-  // Live ticking timestamp for real-time downtime stopwatch calculation (1000ms tick)
-  const [currentTime, setCurrentTime] = useState<number>(() => Date.now());
+  // Stop reason form state
+  const [selectedReason, setSelectedReason] = useState<OperatorReasonCode>('KNT');
+  const [stopNotes, setStopNotes] = useState('');
+  const [operatorName, setOperatorName] = useState('Floor Supervisor');
+  const [isSubmittingStop, setIsSubmittingStop] = useState(false);
+
+  // Configure loom form state
+  const [cfgLoomNum, setCfgLoomNum] = useState<number>(1);
+  const [cfgFamily, setCfgFamily] = useState('OmniPlus-i');
+  const [cfgArticle, setCfgArticle] = useState('Standard Weave');
+  const [cfgRpm, setCfgRpm] = useState<number>(874);
+  const [cfgDensity, setCfgDensity] = useState<number>(27.2);
+  const [isSubmittingConfig, setIsSubmittingConfig] = useState(false);
+
+  // Stopwatch 1-second interval
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Form states for Commissioning Modal (Supports Picanol & Toyota expansion)
-  const [prefix, setPrefix] = useState<'PIC' | 'TOY'>('PIC');
-  const [newLoomNumber, setNewLoomNumber] = useState<number>(37);
-  const [newSerial, setNewSerial] = useState('458901');
-  const [newFamily, setNewFamily] = useState<LoomFamily>('OmniPlus-i');
-  const [newSetRpm, setNewSetRpm] = useState<number>(874);
-  const [newDensity, setNewDensity] = useState<number>(27.2);
-  const [isCommissioning, setIsCommissioning] = useState(false);
-
-  // Form states for Long Stop Declaration
-  const [selectedReason, setSelectedReason] = useState<OperatorReasonCode>('KNT');
-  const [operatorName, setOperatorName] = useState('Akram Khan (Lead Supervisor)');
-  const [stopNotes, setStopNotes] = useState('');
-  const [isSubmittingStop, setIsSubmittingStop] = useState(false);
-
   const rawLoomList = useMemo(() => {
-    return Object.values(looms).sort((a, b) => a.loomNumber - b.loomNumber);
+    return Object.values(looms).sort((a, b) => {
+      const numA = a.loomNumber ?? 999;
+      const numB = b.loomNumber ?? 999;
+      return numA - numB;
+    });
   }, [looms]);
 
-  const runningCount = rawLoomList.filter(l => l.state === 'RUNNING').length;
-  const stoppedCount = rawLoomList.filter(l => l.state === 'STOPPED').length;
-  const longStopCount = rawLoomList.filter(l => {
-    if (l.state !== 'STOPPED') return false;
-    const elapsed = l.since ? Math.max(0, currentTime - new Date(l.since).getTime()) : 0;
-    return l.isLongStop || elapsed >= 300000;
-  }).length;
-  const omniICount = rawLoomList.filter(l => l.family === 'OmniPlus-i').length;
-  const omni800Count = rawLoomList.filter(l => l.family === 'OmniPlus 800').length;
-  const summumCount = rawLoomList.filter(l => l.family === 'OmniPlus Summum').length;
-
   const filteredLooms = useMemo(() => {
-    return rawLoomList.filter(loom => {
-      // 1. Search Query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchLoom = `loom ${loom.loomNumber}`.includes(q) || loom.loomNumber.toString() === q;
-        const matchSerial = loom.machineId.toLowerCase().includes(q);
-        const matchFamily = loom.family.toLowerCase().includes(q);
-        if (!matchLoom && !matchSerial && !matchFamily) return false;
-      }
+    if (activeFilter === 'ALL') return rawLoomList;
+    return rawLoomList.filter(l => l.state === activeFilter);
+  }, [rawLoomList, activeFilter]);
 
-      // 2. Status Filter
-      if (activeFilter === 'RUNNING') return loom.state === 'RUNNING';
-      if (activeFilter === 'STOPPED') return loom.state === 'STOPPED';
-      if (activeFilter === 'LONG_STOP') {
-        const elapsed = loom.since ? Math.max(0, currentTime - new Date(loom.since).getTime()) : 0;
-        return loom.state === 'STOPPED' && (loom.isLongStop || elapsed >= 300000);
-      }
-      if (activeFilter === 'OMNI_I') return loom.family === 'OmniPlus-i';
-      if (activeFilter === 'OMNI_800') return loom.family === 'OmniPlus 800';
-      if (activeFilter === 'SUMMUM') return loom.family === 'OmniPlus Summum';
-      return true;
-    });
-  }, [rawLoomList, activeFilter, searchQuery, currentTime]);
-
-  const formatDowntime = (ms: number): string => {
-    const totalSec = Math.floor(ms / 1000);
-    const mins = Math.floor(totalSec / 60);
-    const secs = totalSec % 60;
-    return `${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
+  // Open Configure Modal
+  const openConfigModal = (loom: LoomClientState, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfigModalLoom(loom);
+    setCfgLoomNum(loom.loomNumber ?? 1);
+    setCfgFamily(loom.family || 'OmniPlus-i');
+    setCfgArticle(loom.articleName || 'Standard Weave');
+    setCfgRpm(loom.setRpm || 874);
+    setCfgDensity(loom.weftDensityPicksPerCm || 27.2);
   };
 
-  const handleCommissionSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!onAddMachine) return;
-    setIsCommissioning(true);
-    try {
-      const machineId = `${prefix}-${newSerial.trim()}`;
-      const sources: SourceKind[] = 
-        newFamily === 'OmniPlus 800' 
-          ? ['LDL'] 
-          : newFamily === 'Toyota JAT810' 
-          ? ['SENSOR_KIT'] 
-          : ['LDL', 'BICOM_ETH'];
-      await onAddMachine(machineId, newLoomNumber, newFamily, sources, newSetRpm, newDensity);
-      setShowAddModal(false);
-      setNewLoomNumber(prev => prev + 1);
-      setNewSerial(prev => (parseInt(prev, 10) + 1).toString());
-    } finally {
-      setIsCommissioning(false);
-    }
+  // Open Stop Reason Modal
+  const openStopModal = (loom: LoomClientState, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStopModalLoom(loom);
+    setSelectedReason(loom.operatorReasonCode || 'KNT');
+    setStopNotes(loom.operatorReasonNote || '');
   };
 
-  const handleLongStopSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeLongStopMachine) return;
+  const handleStopSubmit = async () => {
+    if (!stopModalLoom) return;
     setIsSubmittingStop(true);
     try {
-      await onAssignLongStopReason(
-        activeLongStopMachine.machineId,
-        activeLongStopMachine.stopId || `stop-${activeLongStopMachine.machineId}`,
+      await onAssignStopReason(
+        stopModalLoom.machineId,
+        stopModalLoom.stopId,
         selectedReason,
         stopNotes,
         operatorName
       );
-      setActiveLongStopMachine(null);
-      setStopNotes('');
+      setStopModalLoom(null);
     } finally {
       setIsSubmittingStop(false);
     }
   };
 
-  const formatStopCategoryLabel = (category: string | null) => {
-    if (!category) return 'STOPPED';
-    switch (category) {
-      case 'WARP': return 'WARP BREAK';
-      case 'FILLING': return 'WEFT (FILLING)';
-      case 'SELVEDGE': return 'LENO SELVEDGE';
-      case 'OTHER': return 'OTHER STOP';
-      default: return category;
+  const handleConfigSubmit = async () => {
+    if (!configModalLoom) return;
+    setIsSubmittingConfig(true);
+    try {
+      await onConfigureLoom(configModalLoom.machineId, {
+        loomNumber: Number(cfgLoomNum),
+        family: cfgFamily,
+        articleName: cfgArticle,
+        setRpm: Number(cfgRpm),
+        weftDensity: Number(cfgDensity)
+      });
+      setConfigModalLoom(null);
+    } finally {
+      setIsSubmittingConfig(false);
     }
   };
 
-  return (
-    <div className="space-y-2.5 sm:space-y-3">
-      {/* Mobile-First Interactive Filter & Search Controls */}
-      <div className="bg-white p-2 sm:p-3 rounded-xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        {/* Horizontal Scrollable 7 Filter Chips (Touch Friendly) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-          {/* Tab 1: All */}
-          <button
-            onClick={() => setActiveFilter('ALL')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
-              activeFilter === 'ALL'
-                ? 'bg-slate-900 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            All ({rawLoomList.length})
-          </button>
+  // Format stopwatch elapsed time
+  const formatDuration = (sinceIso?: string) => {
+    if (!sinceIso) return '00:00';
+    const elapsedSec = Math.max(0, Math.floor((currentTime - new Date(sinceIso).getTime()) / 1000));
+    const mins = Math.floor(elapsedSec / 60);
+    const secs = elapsedSec % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
-          {/* Tab 2: Running */}
-          <button
-            onClick={() => setActiveFilter('RUNNING')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
-              activeFilter === 'RUNNING'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            Running ({runningCount})
-          </button>
+  // ====================================================================
+  // 1. HONEST EMPTY STATE (0 Connected Machines)
+  // ====================================================================
+  if (rawLoomList.length === 0) {
+    return (
+      <Card className="border-dashed border-2 border-zinc-300 bg-white p-8 sm:p-12 text-center max-w-2xl mx-auto my-8">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100 text-zinc-900 mb-4">
+          <Radio className="h-7 w-7 text-zinc-700 animate-pulse" />
+        </div>
+        <CardTitle className="text-xl sm:text-2xl font-bold text-zinc-950 mb-2">
+          No Looms Connected
+        </CardTitle>
+        <p className="text-sm text-zinc-600 max-w-md mx-auto mb-6">
+          The SCADA ingestion engine is online and actively listening for hardware packets from WT32-ETH01 or Edge Gateway nodes.
+        </p>
 
-          {/* Tab 3: Stopped */}
-          <button
-            onClick={() => setActiveFilter('STOPPED')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
-              activeFilter === 'STOPPED'
-                ? 'bg-red-600 text-white'
-                : 'bg-red-50 text-red-800 border border-red-200 hover:bg-red-100'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-red-400" />
-            Stopped ({stoppedCount})
-          </button>
-
-          {/* Tab 4: Long Stop >5m */}
-          <button
-            onClick={() => setActiveFilter('LONG_STOP')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
-              activeFilter === 'LONG_STOP'
-                ? 'bg-amber-600 text-white'
-                : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
-            }`}
-          >
-            <AlertTriangle size={12} className={activeFilter === 'LONG_STOP' ? 'text-white' : 'text-amber-600'} />
-            Long Stop &gt;5m ({longStopCount})
-          </button>
-
-          {/* Tab 5: OmniPlus-i */}
-          <button
-            onClick={() => setActiveFilter('OMNI_I')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
-              activeFilter === 'OMNI_I'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            OmniPlus-i ({omniICount})
-          </button>
-
-          {/* Tab 6: OmniPlus 800 */}
-          <button
-            onClick={() => setActiveFilter('OMNI_800')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
-              activeFilter === 'OMNI_800'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            OmniPlus 800 ({omni800Count})
-          </button>
-
-          {/* Tab 7: Summum */}
-          <button
-            onClick={() => setActiveFilter('SUMMUM')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
-              activeFilter === 'SUMMUM'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            Summum ({summumCount})
-          </button>
+        <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 text-left font-mono text-xs max-w-lg mx-auto space-y-2">
+          <div className="flex items-center justify-between text-zinc-500 pb-2 border-b border-zinc-200">
+            <span className="font-semibold text-zinc-800">LAN Telemetry Listener</span>
+            <span className="inline-flex items-center gap-1.5 text-emerald-700 font-sans font-medium text-[11px]">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+              Ready
+            </span>
+          </div>
+          <div className="text-zinc-700">
+            <span className="text-zinc-400">Endpoint: </span>
+            <span className="text-zinc-900 font-semibold">POST /api/ingest/v1/batch</span>
+          </div>
+          <div className="text-zinc-700">
+            <span className="text-zinc-400">Auth Header: </span>
+            <span className="text-zinc-900 font-semibold">x-weavesync-key: weavesync-industrial-secret-2026</span>
+          </div>
+          <div className="text-zinc-700">
+            <span className="text-zinc-400">Interface: </span>
+            <span>XP_CBMP_P9 (GPIO 4: STRT, GPIO 32: PP/PCNT, GPIO 33: WD, GPIO 14: FD)</span>
+          </div>
         </div>
 
-        {/* Quick Search & + Commission Loom Button */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 sm:w-44">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search Loom #..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-7 py-1 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
+        <p className="text-xs text-zinc-400 mt-6">
+          Once an authenticated device transmits a heartbeat packet, its loom card will appear live automatically.
+        </p>
+      </Card>
+    );
+  }
 
-          {onAddMachine && (
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex-shrink-0 flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer active:scale-95"
-            >
-              <Plus size={14} />
-              <span>+ Commission Loom</span>
-            </button>
-          )}
+  // ====================================================================
+  // 2. CONNECTED LOOMS MATRIX
+  // ====================================================================
+  return (
+    <div className="space-y-4">
+      {/* Filter Tabs */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant={activeFilter === 'ALL' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveFilter('ALL')}
+            className="text-xs"
+          >
+            All ({rawLoomList.length})
+          </Button>
+          <Button
+            variant={activeFilter === 'RUNNING' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveFilter('RUNNING')}
+            className="text-xs"
+          >
+            Running ({rawLoomList.filter(l => l.state === 'RUNNING').length})
+          </Button>
+          <Button
+            variant={activeFilter === 'STOPPED' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveFilter('STOPPED')}
+            className="text-xs"
+          >
+            Stopped ({rawLoomList.filter(l => l.state === 'STOPPED').length})
+          </Button>
+          <Button
+            variant={activeFilter === 'OFFLINE' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveFilter('OFFLINE')}
+            className="text-xs"
+          >
+            Offline ({rawLoomList.filter(l => l.state === 'OFFLINE').length})
+          </Button>
         </div>
       </div>
 
-      {/* 36-Machine Matrix Grid (2 cols on phone, 3 on sm, 4 on md, 6 on lg) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 pb-8">
+      {/* Grid of Loom Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
         {filteredLooms.map(loom => {
           const isRunning = loom.state === 'RUNNING';
+          const isStopped = loom.state === 'STOPPED';
           const isOffline = loom.state === 'OFFLINE';
-          const hasDeclaredReason = !!loom.operatorReasonCode;
-
-          // Live downtime calculation
-          const stopTimestamp = loom.since ? new Date(loom.since).getTime() : currentTime;
-          const elapsedMs = Math.max(0, currentTime - stopTimestamp);
-          const isLongStop = !isRunning && !isOffline && (loom.isLongStop || elapsedMs >= 300000);
+          const elapsedSec = isStopped && loom.since 
+            ? Math.max(0, Math.floor((currentTime - new Date(loom.since).getTime()) / 1000))
+            : 0;
+          const needsReason = isStopped && elapsedSec >= 300 && !loom.operatorReasonCode;
 
           return (
-            <div
+            <Card 
               key={loom.machineId}
               onClick={() => onSelectLoom(loom.machineId)}
-              className={`text-left bg-white p-2.5 sm:p-3 rounded-xl border transition-all duration-150 shadow-sm relative flex flex-col justify-between min-h-[155px] sm:min-h-[170px] cursor-pointer active:scale-[0.98] group select-none ${
-                isLongStop && !hasDeclaredReason
-                  ? 'border-red-500 ring-2 ring-red-400/90 bg-red-50/80 shadow-md'
-                  : isLongStop && hasDeclaredReason
-                  ? 'border-amber-400 bg-amber-50/60'
-                  : isRunning
-                  ? 'border-slate-200 hover:border-emerald-400 bg-gradient-to-b from-white to-slate-50/50 hover:shadow-md'
-                  : isOffline
-                  ? 'border-slate-300 bg-slate-100 opacity-70'
-                  : 'border-red-200 bg-red-50/30 hover:border-red-400'
+              className={`p-4 transition-all hover:border-zinc-400 hover:shadow-xs cursor-pointer flex flex-col justify-between ${
+                isStopped ? 'border-rose-300 bg-rose-50/20' : 'bg-white'
               }`}
             >
-              {/* Header: Machine Number, Serial ID, and Live Indicator */}
+              {/* Card Header: Loom Name, Model & Status */}
               <div>
-                <div className="flex justify-between items-start mb-0.5">
-                  <div className="flex flex-col">
-                    <span className="font-black text-slate-900 text-sm sm:text-base leading-tight">
-                      Loom {loom.loomNumber}
-                    </span>
-                    <span className="text-[10px] sm:text-[11px] font-mono font-bold text-blue-700 tracking-tight">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div>
+                    <h2 className="font-bold text-base text-zinc-950 flex items-center gap-1.5">
+                      <span>{loom.loomNumber ? `Loom ${loom.loomNumber}` : loom.machineId}</span>
+                      {loom.loomNumber && (
+                        <span className="text-xs font-normal text-zinc-500">
+                          · {loom.family}
+                        </span>
+                      )}
+                    </h2>
+                    <span className="text-[11px] text-zinc-500 font-mono block">
                       {loom.machineId}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
-                    {(loom.isPilotNode || loom.machineId === 'PIC-427708' || loom.loomNumber === 1) && (
-                      <span className="text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 uppercase tracking-wider flex items-center gap-1 shadow-sm animate-pulse">
-                        <Zap size={9} className="fill-slate-950" /> PILOT
-                      </span>
-                    )}
-                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                      isRunning 
-                        ? 'bg-emerald-500 ring-2 sm:ring-4 ring-emerald-100' 
-                        : isOffline
-                        ? 'bg-slate-400 ring-2 sm:ring-4 ring-slate-100'
-                        : 'bg-red-500 ring-2 sm:ring-4 ring-red-100 animate-pulse'
-                    }`} />
+                  {isRunning && (
+                    <Badge variant="running">Running</Badge>
+                  )}
+                  {isStopped && (
+                    <Badge variant="stopped">
+                      {loom.stopCategory ? `${loom.stopCategory} Stop` : 'Stopped'}
+                    </Badge>
+                  )}
+                  {isOffline && (
+                    <Badge variant="offline">Offline</Badge>
+                  )}
+                </div>
+
+                {/* Article Name */}
+                <div className="text-xs text-zinc-600 truncate mb-3">
+                  {loom.articleName || 'Standard Weave'}
+                </div>
+
+                {/* Main Metrics Strip */}
+                <div className="grid grid-cols-3 gap-2 py-2 border-y border-zinc-100 text-center font-mono">
+                  <div>
+                    <span className="text-[10px] text-zinc-500 uppercase font-sans block">Efficiency</span>
+                    <span className="text-sm font-bold text-zinc-950 tabular-nums">
+                      {loom.efficiencyPercentage.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-zinc-500 uppercase font-sans block">Speed</span>
+                    <span className="text-sm font-bold text-zinc-950 tabular-nums">
+                      {loom.rpm} <span className="text-[9px] font-sans font-normal text-zinc-500">RPM</span>
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-zinc-500 uppercase font-sans block">Output</span>
+                    <span className="text-sm font-bold text-zinc-950 tabular-nums">
+                      {loom.metresWoven.toFixed(1)} <span className="text-[9px] font-sans font-normal text-zinc-500">m</span>
+                    </span>
                   </div>
                 </div>
 
-                {/* Family & Protocol Pill */}
-                <div className="flex items-center gap-1 mt-1 flex-wrap">
-                  <span className="text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 truncate max-w-[85px] sm:max-w-none">
-                    {loom.family === 'OmniPlus Summum' ? 'Summum' : loom.family}
-                  </span>
-                  <span className="text-[8px] sm:text-[9px] font-mono font-semibold px-1 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                    {loom.sources.join('+')}
-                  </span>
-                </div>
-              </div>
-
-              {/* Middle Metrics: Efficiency & State */}
-              <div className="my-1.5">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-lg sm:text-2xl font-mono font-black text-slate-900 tracking-tight tabular-nums">
-                    {loom.efficiencyPercentage.toFixed(1)}%
-                  </span>
-                  <span className={`text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                    isRunning 
-                      ? 'bg-emerald-100 text-emerald-800' 
-                      : isOffline
-                      ? 'bg-slate-200 text-slate-700'
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {loom.state}
-                  </span>
-                </div>
-
-                {/* Stoppage Status & >5 Minute Long-Stop Stopwatch / Prompt */}
-                {!isRunning && !isOffline && (
-                  <div className="mt-1 space-y-1">
-                    {/* Exceeded 5 minutes (>300,000ms) without declared supervisor reason */}
-                    {isLongStop && !hasDeclaredReason ? (
-                      <>
-                        {/* Live Stopwatch Badge: ⏱️ EXCEEDED 5m: MMm SSs */}
-                        <div className="flex items-center justify-between text-[9px] sm:text-[10px] font-black text-red-700 bg-red-100/95 border border-red-300 px-1.5 py-0.5 rounded shadow-inner animate-pulse">
-                          <span className="flex items-center gap-1">
-                            <Clock size={10} className="text-red-600 animate-spin" style={{ animationDuration: '3s' }} />
-                            <span>⏱️ EXCEEDED 5m:</span>
-                          </span>
-                          <span className="font-mono tabular-nums font-black text-red-800">
-                            {formatDowntime(elapsedMs)}
-                          </span>
-                        </div>
-
-                        {/* Prominent High-Visibility Prompt Button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveLongStopMachine(loom);
-                          }}
-                          className="w-full bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white text-[9px] sm:text-[10px] font-black py-1.5 px-1.5 rounded-lg shadow-md transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 ring-2 ring-red-400/50"
-                        >
-                          <AlertTriangle size={11} className="fill-white text-red-600 animate-bounce" />
-                          <span>⚠️ ASSIGN REASON REQUIRED (&gt;5m)</span>
-                        </button>
-                      </>
-                    ) : isLongStop && hasDeclaredReason ? (
-                      /* Exceeded 5m with declared reason */
-                      <div className="text-[8px] sm:text-[9px] font-mono font-bold text-amber-900 bg-amber-100/90 border border-amber-300 px-1.5 py-0.5 rounded flex items-center justify-between truncate">
-                        <div className="flex items-center gap-1 truncate">
-                          <CheckCircle2 size={10} className="text-amber-700 flex-shrink-0" />
-                          <span className="truncate">[{loom.operatorReasonCode}] {OPERATOR_REASON_LABELS[loom.operatorReasonCode!]}</span>
-                        </div>
-                        <span className="tabular-nums font-semibold text-amber-800 ml-1 flex-shrink-0">
-                          ({formatDowntime(elapsedMs)})
-                        </span>
-                      </div>
+                {/* Stopped Stopwatch & Reason Badge */}
+                {isStopped && (
+                  <div className="mt-3 flex items-center justify-between text-xs">
+                    <span className="inline-flex items-center gap-1 font-mono font-semibold text-rose-700 tabular-nums">
+                      <Clock className="h-3.5 w-3.5 text-rose-600" />
+                      {formatDuration(loom.since)}
+                    </span>
+                    {loom.operatorReasonCode ? (
+                      <span className="text-[11px] font-medium text-zinc-700 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
+                        [{loom.operatorReasonCode}] {OPERATOR_REASON_LABELS[loom.operatorReasonCode]}
+                      </span>
                     ) : (
-                      /* Stopped under 5 minutes: show stop category, live elapsed downtime, and quick Assign button */
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[9px] sm:text-[10px] font-semibold text-red-800 bg-red-100/80 border border-red-200 px-1.5 py-0.5 rounded">
-                          <div className="flex items-center gap-1 truncate">
-                            <AlertTriangle size={10} className="flex-shrink-0 text-red-600" />
-                            <span className="truncate">{formatStopCategoryLabel(loom.stopCategory)}</span>
-                          </div>
-                          <span className="font-mono tabular-nums text-[9px] font-bold text-red-700 ml-1 flex-shrink-0">
-                            ⏱️ {formatDowntime(elapsedMs)}
-                          </span>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveLongStopMachine(loom);
-                          }}
-                          className="w-full text-[8px] sm:text-[9px] font-bold py-0.5 px-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                        >
-                          <Tag size={9} />
-                          <span>Assign Reason</span>
-                        </button>
-                      </div>
+                      <span className="text-[11px] text-rose-600 font-medium">
+                        Unclassified
+                      </span>
                     )}
                   </div>
                 )}
               </div>
 
-              {/* Footer: Live RPM (Tabular Nums) & Tap Indicator */}
-              <div className="pt-1.5 border-t border-slate-100 flex justify-between items-center text-xs">
-                <div className="font-mono tabular-nums text-slate-700 font-semibold">
-                  <span className={isRunning ? 'text-slate-900 font-black' : 'text-slate-400'}>
-                    {loom.rpm}
-                  </span>
-                  <span className="text-[9px] font-normal text-slate-400 ml-0.5">RPM</span>
-                </div>
+              {/* Card Footer Actions */}
+              <div className="mt-4 pt-2 flex items-center justify-between gap-2 border-t border-zinc-100">
+                {needsReason ? (
+                  <Button 
+                    size="sm" 
+                    variant="destructive"
+                    className="w-full text-xs"
+                    onClick={(e) => openStopModal(loom, e)}
+                  >
+                    <Tag className="h-3 w-3 mr-1" />
+                    Log Stop Reason
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs text-zinc-600 hover:text-zinc-900 p-0 h-auto"
+                      onClick={(e) => openConfigModal(loom, e)}
+                    >
+                      <Settings2 className="h-3.5 w-3.5 mr-1" />
+                      Configure
+                    </Button>
 
-                <div className="text-[10px] font-bold text-blue-600 group-hover:text-blue-800 flex items-center gap-0.5 transition-colors">
-                  <span>Inspect</span> <ArrowRight size={10} />
-                </div>
+                    <span className="text-xs text-zinc-500 flex items-center gap-0.5">
+                      View Diagnostics
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </span>
+                  </>
+                )}
               </div>
-            </div>
+            </Card>
           );
         })}
-
-        {/* Dynamic Commissioning Card for Looms 37, 38, 39 */}
-        {onAddMachine && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/50 p-3 sm:p-4 rounded-xl flex flex-col items-center justify-center text-center transition-all group min-h-[155px] sm:min-h-[170px] cursor-pointer active:scale-95"
-          >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center text-slate-500 group-hover:text-blue-600 mb-1.5 transition-colors">
-              <Plus size={18} />
-            </div>
-            <span className="text-xs font-bold text-slate-800 group-hover:text-blue-600">
-              + Commission Loom
-            </span>
-            <span className="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 font-mono">
-              Onboard 37–39
-            </span>
-          </button>
-        )}
       </div>
 
-      {/* MODAL 1: LONG-STOP OPERATOR DECLARATION (Mobile Bottom Sheet / Desktop Modal) */}
-      {activeLongStopMachine && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
-            {/* Mobile Grab Handle */}
-            <div className="w-12 h-1 bg-slate-300 rounded-full mx-auto mb-3 sm:hidden" />
+      {/* STOP REASON DIALOG */}
+      <Dialog open={Boolean(stopModalLoom)} onOpenChange={(open) => !open && setStopModalLoom(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Log Stoppage Reason</DialogTitle>
+            <DialogDescription>
+              Machine: {stopModalLoom?.machineId} ({stopModalLoom?.loomNumber ? `Loom ${stopModalLoom.loomNumber}` : 'Unassigned'})
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="flex items-center gap-2 mb-2 text-slate-900">
-              <Clock className="text-red-600 flex-shrink-0" size={22} />
-              <div>
-                <h3 className="text-base sm:text-lg font-black leading-tight">
-                  Long-Stop Declaration ({activeLongStopMachine.machineId})
-                </h3>
-                <span className="text-[11px] text-slate-500 font-mono">
-                  Machine {activeLongStopMachine.loomNumber} stopped &gt; 5m • {formatStopCategoryLabel(activeLongStopMachine.stopCategory)}
-                </span>
-              </div>
-            </div>
-
-            <p className="text-[11px] sm:text-xs text-slate-600 mb-3 bg-slate-50 p-2 sm:p-2.5 rounded-lg border border-slate-200">
-              Under ISO standards, stoppages exceeding 5 minutes require an authorized supervisor code declaration.
-            </p>
-
-            <form onSubmit={handleLongStopSubmit} className="space-y-3 sm:space-y-4">
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Select Reason Code (Section 10.4)
-                </label>
-                <div className="grid grid-cols-2 gap-1.5 sm:gap-2 text-xs">
-                  {(['ART', 'KNT', 'ELE', 'MEC', 'BST', 'DOF', 'OLS'] as OperatorReasonCode[]).map(code => (
-                    <button
-                      key={code}
-                      type="button"
-                      onClick={() => setSelectedReason(code)}
-                      className={`p-2 rounded-lg border text-left transition-colors cursor-pointer min-h-[44px] ${
-                        selectedReason === code
-                          ? 'border-blue-600 bg-blue-50 text-blue-900 font-bold ring-2 ring-blue-200'
-                          : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="font-mono font-bold text-xs">[{code}]</div>
-                      <div className="text-[10px] text-slate-500 truncate">{OPERATOR_REASON_LABELS[code]}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Supervisor / Operator Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={operatorName}
-                  onChange={(e) => setOperatorName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 sm:p-2.5 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 min-h-[40px]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Floor Notes / Diagnostics
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Warp beam replacement or broken heald frame wire..."
-                  value={stopNotes}
-                  onChange={(e) => setStopNotes(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 sm:p-2.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setActiveLongStopMachine(null)}
-                  className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer min-h-[40px]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingStop}
-                  className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors cursor-pointer min-h-[40px]"
-                >
-                  {isSubmittingStop ? 'Submitting...' : 'Confirm Long-Stop Reason'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2: + COMMISSION LOOM MODAL (Dynamic Fleet Expansion) */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
-            {/* Mobile Grab Handle */}
-            <div className="w-12 h-1 bg-slate-300 rounded-full mx-auto mb-3 sm:hidden" />
-
-            <div className="flex items-center gap-2 mb-2 text-slate-900">
-              <Cpu className="text-blue-600 flex-shrink-0" size={22} />
-              <h3 className="text-base sm:text-lg font-black leading-tight">+ Commission Loom (Dynamic Fleet Expansion)</h3>
-            </div>
-            <p className="text-[11px] sm:text-xs text-slate-500 mb-3">
-              Onboard Ali Haider Industries' 3 new looms (Looms 37–39) or neighboring 55 Toyota looms in seconds.
-            </p>
-
-            <form onSubmit={handleCommissionSubmit} className="space-y-3">
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
-                    Prefix
-                  </label>
-                  <select
-                    value={prefix}
-                    onChange={(e) => {
-                      const p = e.target.value as 'PIC' | 'TOY';
-                      setPrefix(p);
-                      if (p === 'TOY') {
-                        setNewFamily('Toyota JAT810');
-                        setNewSetRpm(750);
-                        setNewDensity(27.2);
-                      } else {
-                        setNewFamily('OmniPlus-i');
-                        setNewSetRpm(874);
-                        setNewDensity(27.2);
-                      }
-                    }}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold min-h-[40px] text-slate-900"
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-semibold text-zinc-700 block mb-1.5">
+                Standard Reason Code (ISO 22971)
+              </label>
+              <div className="grid grid-cols-1 gap-1.5">
+                {(Object.keys(OPERATOR_REASON_LABELS) as OperatorReasonCode[]).map(code => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setSelectedReason(code)}
+                    className={`flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium border text-left transition-colors cursor-pointer ${
+                      selectedReason === code
+                        ? 'border-zinc-900 bg-zinc-900 text-white'
+                        : 'border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50'
+                    }`}
                   >
-                    <option value="PIC">PIC (Picanol)</option>
-                    <option value="TOY">TOY (Toyota)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
-                    Loom #
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={newLoomNumber}
-                    onChange={(e) => setNewLoomNumber(parseInt(e.target.value, 10))}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold min-h-[40px] text-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
-                    Serial #
-                  </label>
-                  <input
-                    type="text"
-                    value={newSerial}
-                    onChange={(e) => setNewSerial(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold min-h-[40px] text-slate-900"
-                  />
-                </div>
+                    <span>{OPERATOR_REASON_LABELS[code]}</span>
+                    <span className="font-mono opacity-80">[{code}]</span>
+                  </button>
+                ))}
               </div>
+            </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
-                  Machine Family
-                </label>
-                <select
-                  value={newFamily}
-                  onChange={(e) => {
-                    const f = e.target.value as LoomFamily;
-                    setNewFamily(f);
-                    if (f === 'OmniPlus 800') {
-                      setNewSetRpm(501);
-                      setNewDensity(38.2);
-                    } else if (f === 'OmniPlus Summum') {
-                      setNewSetRpm(850);
-                      setNewDensity(27.2);
-                    } else if (f === 'Toyota JAT810') {
-                      setNewSetRpm(750);
-                      setNewDensity(27.2);
-                    } else {
-                      setNewSetRpm(874);
-                      setNewDensity(27.2);
-                    }
-                  }}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-800 min-h-[40px]"
-                >
-                  <option value="OmniPlus-i">Picanol OmniPlus-i (2021 • 874 RPM • LDL+BICOM)</option>
-                  <option value="OmniPlus Summum">Picanol OmniPlus Summum (2012/15 • 850 RPM • LDL+BICOM)</option>
-                  <option value="OmniPlus 800">Picanol OmniPlus 800 (2005/06 • 501 RPM • LDL)</option>
-                  <option value="Toyota JAT810">Toyota JAT810 (Airjet • 750 RPM • Sensor Kit)</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
-                    Default Set RPM
-                  </label>
-                  <input
-                    type="number"
-                    value={newSetRpm}
-                    onChange={(e) => setNewSetRpm(parseInt(e.target.value, 10))}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold min-h-[40px]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
-                    Weft Density (p/cm)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={newDensity}
-                    onChange={(e) => setNewDensity(parseFloat(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold min-h-[40px]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer min-h-[40px]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isCommissioning}
-                  className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors cursor-pointer min-h-[40px]"
-                >
-                  {isCommissioning ? 'Commissioning...' : '+ Commission Loom to Fleet'}
-                </button>
-              </div>
-            </form>
+            <div>
+              <label className="text-xs font-semibold text-zinc-700 block mb-1">
+                Technician / Operator Notes (Optional)
+              </label>
+              <textarea
+                value={stopNotes}
+                onChange={(e) => setStopNotes(e.target.value)}
+                placeholder="Details of repair, beam condition, or warp break location..."
+                className="w-full text-xs p-2.5 rounded-md border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-950 resize-none h-18"
+              />
+            </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStopModalLoom(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleStopSubmit} disabled={isSubmittingStop}>
+              {isSubmittingStop ? 'Saving...' : 'Submit Reason'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CONFIGURE LOOM DIALOG */}
+      <Dialog open={Boolean(configModalLoom)} onOpenChange={(open) => !open && setConfigModalLoom(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Configure Hardware Node</DialogTitle>
+            <DialogDescription>
+              Assign factory floor parameters to {configModalLoom?.machineId} ({configModalLoom?.deviceId})
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div>
+              <label className="font-semibold text-zinc-700 block mb-1">Loom Number</label>
+              <input
+                type="number"
+                value={cfgLoomNum}
+                onChange={(e) => setCfgLoomNum(Number(e.target.value))}
+                className="w-full p-2 rounded-md border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-950"
+              />
+            </div>
+
+            <div>
+              <label className="font-semibold text-zinc-700 block mb-1">Model Family</label>
+              <select
+                value={cfgFamily}
+                onChange={(e) => setCfgFamily(e.target.value)}
+                className="w-full p-2 rounded-md border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-950 bg-white"
+              >
+                <option value="OmniPlus-i">OmniPlus-i</option>
+                <option value="OmniPlus 800">OmniPlus 800</option>
+                <option value="OmniPlus Summum">OmniPlus Summum</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="font-semibold text-zinc-700 block mb-1">Article Name</label>
+              <input
+                type="text"
+                value={cfgArticle}
+                onChange={(e) => setCfgArticle(e.target.value)}
+                className="w-full p-2 rounded-md border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-950"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="font-semibold text-zinc-700 block mb-1">Setpoint RPM</label>
+                <input
+                  type="number"
+                  value={cfgRpm}
+                  onChange={(e) => setCfgRpm(Number(e.target.value))}
+                  className="w-full p-2 rounded-md border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-zinc-700 block mb-1">Weft Density (picks/cm)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={cfgDensity}
+                  onChange={(e) => setCfgDensity(Number(e.target.value))}
+                  className="w-full p-2 rounded-md border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfigModalLoom(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfigSubmit} disabled={isSubmittingConfig}>
+              {isSubmittingConfig ? 'Saving...' : 'Save Configuration'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

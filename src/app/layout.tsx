@@ -13,12 +13,12 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#1e293b",
+  themeColor: "#ffffff",
 };
 
 export const metadata: Metadata = {
   title: "WeaveSync SCADA | Ali Haider Industries",
-  description: "Real-time IIoT SCADA Digital Twin for 36 Picanol Air-Jet Weaving Looms in SITE Area, Karachi",
+  description: "Real-time Industrial SCADA System for Picanol Air-Jet Weaving Looms at Ali Haider Industries",
 };
 
 export default function RootLayout({
@@ -28,9 +28,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full">
-      <body className={`${inter.className} h-full antialiased bg-[#e8ebf0] text-slate-900 overflow-x-hidden selection:bg-blue-500/20`}>
+      <body className={`${inter.className} h-full antialiased bg-zinc-50 text-zinc-950 overflow-x-hidden selection:bg-zinc-200`}>
         <TelemetryProvider>
-          <div className="min-h-screen flex flex-col bg-[#e8ebf0]">
+          <div className="min-h-screen flex flex-col bg-zinc-50">
             <Header />
             <main className="flex-1 flex flex-col overflow-hidden">
               <Toaster 
@@ -40,10 +40,11 @@ export default function RootLayout({
                   duration: 3500,
                   style: {
                     fontSize: '12px',
-                    fontWeight: 600,
-                    borderRadius: '10px',
-                    background: '#1e293b',
-                    color: '#f8fafc',
+                    fontWeight: 500,
+                    borderRadius: '6px',
+                    background: '#18181b',
+                    color: '#ffffff',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                   }
                 }} 
               />

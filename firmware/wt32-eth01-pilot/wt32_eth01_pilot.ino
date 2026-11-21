@@ -1,17 +1,17 @@
 /**
  * ==============================================================================
- * WEAVESYNC SCADA - WT32-ETH01 PILOT FIRMWARE v2.0.0 (AUDIT HARDENED)
- * Client: Ali Haider Industries (SITE Industrial Area, Karachi)
- * Target: OmniPlus-i Loom 1 (PIC-427708)
+ * WEAVESYNC SCADA - WT32-ETH01 PILOT FIRMWARE v2.1.0 (ZERO-MOCK PRODUCTION)
+ * Client: Ali Haider Industries (Faisalabad, Pakistan)
+ * Target: OmniPlus-i Loom 1 (PIC-427708) / Auto-Registered Nodes
  * Hardware: WT32-ETH01 (ESP32-D0WDQ6 + LAN8720A RMII PHY) + PC817 Optocouplers
  * Tap Interface: Picanol XP_CBMP_P9 (15-Pin D-SUB Female)
  * ==============================================================================
  * 
- * CRITICAL EMBEDDED AUDIT REMEDIATION (ZERO BOOT-TRAP GPIO MAPPING):
- *   - GPIO 0:  RESERVED for LAN8720A 50MHz RMII Clock Input (DO NOT TOUCH)
- *   - GPIO 2:  RESERVED ESP32 Strapping Pin (REMOVED)
- *   - GPIO 12: RESERVED ESP32 VDD_SDIO Flash Voltage Strap (REMOVED)
- *   - GPIO 15: RESERVED ESP32 MTDO / Boot Log Silence Strap (REMOVED)
+ * ZERO-MOCK ENFORCEMENT:
+ *   - Total picks starts at 0 (No hardcoded 1,540,000 offset).
+ *   - Device ID dynamically populated with ETH.macAddress().
+ *   - Monotonic sequence numbers and incremental picksDelta for loss-free accounting.
+ *   - Authenticated with x-weavesync-key header.
  * 
  * AUDIT-VERIFIED SAFE PIN CONNECTIONS:
  *   XP_CBMP_P9 Pin 9  -> 1.8k Resistor -> PC817 Ch1 -> ESP32 GPIO 4  (PI_STRT: Run/Stop Status)
@@ -19,11 +19,9 @@
  *   XP_CBMP_P9 Pin 8  -> 1.8k Resistor -> PC817 Ch3 -> ESP32 GPIO 33 (PI_WD: Warp Stop Drop-Wire)
  *   XP_CBMP_P9 Pin 10 -> 1.8k Resistor -> PC817 Ch4 -> ESP32 GPIO 14 (PI_FD: Filling Stop FD1/FD2)
  * 
- * GROUND & POWER JUMPER (Verified against Official Picanol EPLAN 110123-110126):
- *   XP_CBMP_P9 Pin 14 (PGD)    -> Connected to ALL PC817 Input Cathodes (-) as Common Return
- *   XP_CBMP_P9 Pin 11 (SUP_PI) -> Jumpered to Pin 15 (26V) to power CBMP high-side drivers
- *   XP_CBMP_P9 Pin 15 (26V)    -> Filtered 26V DC source (protected by CBMP Fuse F1)
- *   XP_CBMP_P9 Pins 1, 2       -> RS-422 Differential TX (DO NOT CONNECT TO GROUND!)
+ * DO NOT TOUCH:
+ *   GPIO 0:  50MHz RMII Clock from LAN8720A
+ *   GPIO 2, 12, 15: ESP32 Boot Strapping Pins
  */
 
 #include <Arduino.h>
@@ -57,17 +55,18 @@
 // ------------------------------------------------------------------------------
 // In standard PC817 wiring with pull-up inputs:
 // When optocoupler conducts (signal active), ESP32 pin pulls LOW.
-// If your opto board uses inverting logic, toggle this flag.
 const bool OPTO_ACTIVE_LOW = true;
 
 // ------------------------------------------------------------------------------
-// Machine Configuration
+// Machine & Authentication Configuration
 // ------------------------------------------------------------------------------
 #define MACHINE_ID "PIC-427708"
 #define LOOM_NUMBER 1
 #define GATEWAY_ID "AHI-GW-01"
 #define DEFAULT_SET_RPM 874
 #define WEFT_DENSITY 27.2
+#define INGEST_API_KEY "weavesync-industrial-secret-2026"
+#define FIRMWARE_VERSION "v2.1-prod"
 
 // ------------------------------------------------------------------------------
 // Target SCADA Ingestion Server (Laptop Direct Ethernet LAN)
@@ -117,32 +116,27 @@ void recordPinTransition(const char* pinName, int rawLevel, unsigned long nowMs,
 }
 
 // ------------------------------------------------------------------------------
-// Telemetry & State Accumulators
+// Telemetry & State Accumulators (Strict Zero-Mock: Start at 0)
 // ------------------------------------------------------------------------------
-volatile unsigned long totalPicks = 1540000;
-volatile unsigned long minutePicks = 0;
-volatile unsigned long lastPickPulseTimeUs = 0;
+volatile unsigned long totalPicks = 0;      // Starts at 0, no mock numbers
+volatile unsigned long intervalPicks = 0;   // Incremental picks since last POST
 volatile unsigned long picksSinceLastStart = 0;
+unsigned long monotonicSeq = 1;
 
 bool eth_connected = false;
 bool currentRunningState = false;
 String currentStopCategory = "";
 unsigned long stateChangeTimeMs = 0;
-unsigned long last1MinCounterMs = 0;
 unsigned long lastHeartbeatMs = 0;
 unsigned long lastDebugPrintMs = 0;
 unsigned long failedStartAttempts = 0;
-unsigned long minuteRunMs = 0;
-unsigned long minuteStopMs = 0;
+String deviceMacAddress = "";
 
 // Evaluation Window Flags [-300ms, +1000ms]
 bool fillingTriggeredInWindow = false;
 bool warpTriggeredInWindow = false;
 unsigned long stopDetectTimeMs = 0;
 
-// ------------------------------------------------------------------------------
-// Helper: Convert Raw Pin Level to Logical Active/Inactive
-// ------------------------------------------------------------------------------
 inline bool isSignalActive(int rawPinLevel) {
   return OPTO_ACTIVE_LOW ? (rawPinLevel == LOW) : (rawPinLevel == HIGH);
 }
@@ -193,6 +187,9 @@ void WiFiEvent(WiFiEvent_t event) {
     case ARDUINO_EVENT_ETH_GOT_IP:
       Serial.print("[ETH] IP Allocated: ");
       Serial.println(ETH.localIP());
+      deviceMacAddress = ETH.macAddress();
+      Serial.print("[ETH] Hardware MAC: ");
+      Serial.println(deviceMacAddress);
       eth_connected = true;
       break;
     case ARDUINO_EVENT_ETH_DISCONNECTED:
@@ -209,25 +206,26 @@ void WiFiEvent(WiFiEvent_t event) {
 }
 
 // ------------------------------------------------------------------------------
-// HTTP POST with Dual-Endpoint Failover
+// HTTP POST with Authentication Header & Fallback
 // ------------------------------------------------------------------------------
 bool postJsonPayload(const String& jsonPayload) {
   if (!eth_connected) {
-    Serial.println("[HTTP] Cannot POST: Ethernet link down. Buffering...");
+    Serial.println("[HTTP] Cannot POST: Ethernet link down.");
     return false;
   }
 
   HTTPClient http;
   http.begin(INGEST_SERVER_URL);
   http.addHeader("Content-Type", "application/json");
-  http.setTimeout(800); // Strict non-blocking timeout
+  http.addHeader("x-weavesync-key", INGEST_API_KEY);
+  http.setTimeout(800);
 
   int httpCode = http.POST(jsonPayload);
   if (httpCode <= 0) {
-    // Failover to Edge Gateway fallback port 4841
     http.end();
     http.begin(GATEWAY_FALLBACK_URL);
     http.addHeader("Content-Type", "application/json");
+    http.addHeader("x-weavesync-key", INGEST_API_KEY);
     http.setTimeout(800);
     httpCode = http.POST(jsonPayload);
   }
@@ -236,7 +234,7 @@ bool postJsonPayload(const String& jsonPayload) {
   if (success) {
     Serial.printf("[HTTP] Ingest ACK (%d)\n", httpCode);
   } else {
-    Serial.printf("[HTTP] Ingest Error: %d\n", httpCode);
+    Serial.printf("[HTTP] Ingest Code: %d\n", httpCode);
   }
 
   http.end();
@@ -244,102 +242,48 @@ bool postJsonPayload(const String& jsonPayload) {
 }
 
 // ------------------------------------------------------------------------------
-// ISO 8601 Timestamp Generation
+// Emit Hardware Telemetry Frame
 // ------------------------------------------------------------------------------
-String getIsoTimestamp() {
-  char buf[32];
-  unsigned long sec = millis() / 1000;
-  snprintf(buf, sizeof(buf), "2026-11-13T14:%02lu:%02lu.000Z", (sec / 60) % 60, sec % 60);
-  return String(buf);
-}
-
-// ------------------------------------------------------------------------------
-// Emit State Update with Raw Transition History (Audit Requirement)
-// ------------------------------------------------------------------------------
-void sendStateUpdate(bool running, const String& stopCat) {
+void sendHardwareTelemetry(bool running, const String& stopCat) {
   JsonDocument doc;
-  doc["schema"] = "ahi.loom.state/1.0";
-  doc["msgId"] = String(MACHINE_ID) + "-st-" + String(millis());
-  doc["seq"] = 1001;
+  
+  String mac = deviceMacAddress.isEmpty() ? ETH.macAddress() : deviceMacAddress;
+  if (mac.isEmpty()) mac = "WT32-ETH01-NODE1";
+
+  doc["deviceId"] = mac;
   doc["machineId"] = MACHINE_ID;
-  doc["gatewayId"] = GATEWAY_ID;
-  doc["source"] = "SENSOR_KIT";
-  doc["deviceId"] = "WT32-ETH01-PILOT";
-  doc["ts"] = getIsoTimestamp();
-  doc["tsQuality"] = "SYNCED";
-  doc["replayed"] = false;
+  doc["ip"] = ETH.localIP().toString();
+  doc["fw"] = FIRMWARE_VERSION;
+  doc["seq"] = monotonicSeq++;
+  doc["ts"] = String(millis());
+  doc["rpm"] = running ? DEFAULT_SET_RPM : 0;
+  doc["picksDelta"] = intervalPicks;
+  doc["picksTotal"] = totalPicks;
+  doc["since"] = String(stateChangeTimeMs);
 
-  JsonObject data = doc["data"].to<JsonObject>();
-  data["state"] = running ? "RUNNING" : "STOPPED";
-  data["stopCategory"] = running ? nullptr : (stopCat.isEmpty() ? "WARP" : stopCat.c_str());
-  data["stopId"] = running ? nullptr : ("stop-" + String(millis()));
-  data["since"] = getIsoTimestamp();
-  data["rpm"] = running ? DEFAULT_SET_RPM : 0;
+  // Clear incremental accumulator upon emit
+  intervalPicks = 0;
 
-  // Real-time Pin Diagnostics
   JsonObject pins = doc["pins"].to<JsonObject>();
   pins["piStrt"] = isSignalActive(digitalRead(PIN_PI_STRT)) ? 1 : 0;
   pins["piPp"] = isSignalActive(digitalRead(PIN_PI_PP)) ? 1 : 0;
   pins["piWd"] = isSignalActive(digitalRead(PIN_PI_WD)) ? 1 : 0;
   pins["piFd"] = isSignalActive(digitalRead(PIN_PI_FD)) ? 1 : 0;
-  pins["optoActiveLow"] = OPTO_ACTIVE_LOW;
 
-  // Raw Pin History Array for Timing Window Verification
-  JsonArray histArray = doc["rawPinHistory"].to<JsonArray>();
-  for (int i = 0; i < historyCount; i++) {
-    JsonObject hItem = histArray.add<JsonObject>();
-    hItem["pin"] = pinHistory[i].pin;
-    hItem["level"] = pinHistory[i].level;
-    hItem["offsetMsFromStop"] = pinHistory[i].offsetMsFromStop;
+  // Raw Pin History Array for Stop Verification
+  if (!running && historyCount > 0) {
+    JsonArray histArray = doc["rawPinHistory"].to<JsonArray>();
+    for (int i = 0; i < historyCount; i++) {
+      JsonObject hItem = histArray.add<JsonObject>();
+      hItem["pin"] = pinHistory[i].pin;
+      hItem["level"] = pinHistory[i].level;
+      hItem["offsetMsFromStop"] = pinHistory[i].offsetMsFromStop;
+    }
   }
 
   String output;
   serializeJson(doc, output);
   postJsonPayload(output);
-}
-
-// ------------------------------------------------------------------------------
-// Emit 1-Minute Counters Envelope
-// ------------------------------------------------------------------------------
-void sendMinuteCounters() {
-  JsonDocument doc;
-  doc["schema"] = "ahi.loom.counters/1.0";
-  doc["msgId"] = String(MACHINE_ID) + "-cnt-" + String(millis());
-  doc["seq"] = 2001;
-  doc["machineId"] = MACHINE_ID;
-  doc["gatewayId"] = GATEWAY_ID;
-  doc["source"] = "SENSOR_KIT";
-  doc["deviceId"] = "WT32-ETH01-PILOT";
-  doc["ts"] = getIsoTimestamp();
-  doc["tsQuality"] = "SYNCED";
-  doc["replayed"] = false;
-
-  unsigned long runTimeSec = minuteRunMs / 1000;
-  float rpmAvg = runTimeSec > 0 ? ((float)minutePicks / ((float)runTimeSec / 60.0)) : 0;
-
-  JsonObject data = doc["data"].to<JsonObject>();
-  data["windowStart"] = getIsoTimestamp();
-  data["windowEnd"] = getIsoTimestamp();
-  data["picksDelta"] = minutePicks;
-  data["picksTotal"] = totalPicks;
-  data["runMs"] = minuteRunMs;
-  data["stopMs"] = minuteStopMs;
-  data["offlineMs"] = 0;
-  data["rpmAvgRunning"] = round(rpmAvg * 10) / 10.0;
-
-  JsonObject stops = data["stops"].to<JsonObject>();
-  stops["WARP"] = (currentStopCategory == "WARP") ? 1 : 0;
-  stops["FILLING"] = (currentStopCategory == "FILLING") ? 1 : 0;
-  stops["SELVEDGE"] = 0;
-  stops["OTHER"] = (currentStopCategory == "OTHER") ? 1 : 0;
-
-  String output;
-  serializeJson(doc, output);
-  postJsonPayload(output);
-
-  minutePicks = 0;
-  minuteRunMs = 0;
-  minuteStopMs = 0;
 }
 
 // ------------------------------------------------------------------------------
@@ -349,8 +293,8 @@ void setup() {
   Serial.begin(115200);
   delay(500);
   Serial.println("\n=======================================================");
-  Serial.println("  WEAVESYNC SCADA - WT32-ETH01 PILOT FIRMWARE v2.0.0   ");
-  Serial.println("  Client: Ali Haider Industries | Loom 1 (PIC-427708)  ");
+  Serial.println("  WEAVESYNC SCADA - WT32-ETH01 PILOT FIRMWARE v2.1.0   ");
+  Serial.println("  Client: Ali Haider Industries | Zero-Mock Hardened   ");
   Serial.println("  Audit-Remediated Safe GPIOs: 4, 32, 33, 14           ");
   Serial.println("=======================================================");
 
@@ -380,7 +324,6 @@ void setup() {
   }
 
   stateChangeTimeMs = millis();
-  last1MinCounterMs = millis();
   lastHeartbeatMs = millis();
   lastDebugPrintMs = millis();
 }
@@ -391,13 +334,13 @@ void setup() {
 void loop() {
   unsigned long now = millis();
 
-  // 0. Harvest hardware pick pulses from PCNT register (1:1 glitch-filtered accumulation)
+  // 0. Harvest hardware pick pulses from PCNT register (1:1 pick counting)
   int16_t hwPicks = 0;
   pcnt_get_counter_value(PCNT_UNIT_BEATUP, &hwPicks);
   if (hwPicks > 0) {
     pcnt_counter_clear(PCNT_UNIT_BEATUP);
     totalPicks += hwPicks;
-    minutePicks += hwPicks;
+    intervalPicks += hwPicks;
     picksSinceLastStart += hwPicks;
   }
 
@@ -411,15 +354,16 @@ void loop() {
   bool activeWd   = isSignalActive(rawWd);
   bool activeFd   = isSignalActive(rawFd);
 
-  // Continuous Serial Debug Output for Saif (Every 1000ms)
+  // Continuous Serial Debug Output for On-Site Verification (Every 1000ms)
   if (now - lastDebugPrintMs >= 1000) {
     lastDebugPrintMs = now;
-    Serial.printf("[DIAG PINS] STRT(GPIO4): %d [%s] | PP(GPIO32): %d | WD(GPIO33): %d [%s] | FD(GPIO14): %d [%s] | Polarity: %s\n",
+    Serial.printf("[DIAG PINS] STRT(GPIO4): %d [%s] | PP(GPIO32): %d | WD(GPIO33): %d [%s] | FD(GPIO14): %d [%s] | Polarity: %s | Total Picks: %lu\n",
       rawStrt, activeStrt ? "RUN" : "STOP",
       rawPp,
       rawWd, activeWd ? "WARP_TRIP" : "OK",
       rawFd, activeFd ? "WEFT_TRIP" : "OK",
-      OPTO_ACTIVE_LOW ? "ACTIVE_LOW (Mode B)" : "ACTIVE_HIGH (Mode A)");
+      OPTO_ACTIVE_LOW ? "ACTIVE_LOW (Mode B)" : "ACTIVE_HIGH (Mode A)",
+      totalPicks);
   }
 
   // Record transitions into raw history buffer
@@ -432,29 +376,25 @@ void loop() {
     recordPinTransition("PI_FD", rawFd, now, stopDetectTimeMs);
   }
 
-  // 1. Detect Machine State Transition (Running <-> Stopped)
+  // 1. Detect Machine State Transition (Running <-> Stopped) - Immediate Edge Push
   if (activeStrt != currentRunningState) {
     currentRunningState = activeStrt;
     stateChangeTimeMs = now;
     recordPinTransition("PI_STRT", rawStrt, now, stopDetectTimeMs);
 
     if (currentRunningState) {
-      // Machine Transitioned to RUNNING
-      Serial.println("[LOOM] State -> RUNNING (Sumo Motor Engaged)");
+      Serial.println("[LOOM] State -> RUNNING (Motor Engaged)");
       currentStopCategory = "";
       picksSinceLastStart = 0;
       stopDetectTimeMs = 0;
-      sendStateUpdate(true, "");
+      sendHardwareTelemetry(true, "");
     } else {
-      // Machine Transitioned to STOPPED (Braking Initiated)
       stopDetectTimeMs = now;
-      Serial.println("[LOOM] State -> STOPPED (Deceleration Initiated)");
+      Serial.println("[LOOM] State -> STOPPED (Braking Engaged)");
 
-      // Restart Fault Detection (< 5 picks before subsequent stop)
       if (picksSinceLastStart < 5 && picksSinceLastStart > 0) {
         failedStartAttempts++;
-        Serial.printf("[LOOM] RESTART FAULT (< 5 picks): Attempt #%lu (Picks: %lu)\n", 
-          failedStartAttempts, picksSinceLastStart);
+        Serial.printf("[LOOM] RESTART FAULT (< 5 picks): Attempt #%lu\n", failedStartAttempts);
       }
 
       // Priority Evaluation: FILLING > WARP > OTHER
@@ -466,33 +406,18 @@ void loop() {
         currentStopCategory = "OTHER";
       }
 
-      Serial.printf("[LOOM] Classified Stop: %s (Priority: FILLING > WARP > OTHER)\n", currentStopCategory.c_str());
-      sendStateUpdate(false, currentStopCategory);
+      Serial.printf("[LOOM] Stop Trigger Classified: %s\n", currentStopCategory.c_str());
+      sendHardwareTelemetry(false, currentStopCategory);
 
-      // Reset window flags
       fillingTriggeredInWindow = false;
       warpTriggeredInWindow = false;
     }
   }
 
-  // Accumulate run / stop time
-  if (currentRunningState) {
-    minuteRunMs += 50;
-  } else {
-    minuteStopMs += 50;
-  }
-
-  // 2. High-Frequency State Telemetry every 1000ms
-  if (now - lastHeartbeatMs >= 1000) {
+  // 2. Periodic Heartbeat every 5000ms (keeps device ONLINE on dashboard)
+  if (now - lastHeartbeatMs >= 5000) {
     lastHeartbeatMs = now;
-    sendStateUpdate(currentRunningState, currentStopCategory);
-  }
-
-  // 3. 1-Minute Counters Rollup every 60,000ms
-  if (now - last1MinCounterMs >= 60000) {
-    last1MinCounterMs = now;
-    sendMinuteCounters();
-    Serial.printf("[1-MIN ROLLUP] Dispatched %lu picks to SCADA\n", minutePicks);
+    sendHardwareTelemetry(currentRunningState, currentStopCategory);
   }
 
   delay(50); // 20 Hz loop

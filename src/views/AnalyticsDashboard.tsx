@@ -7,256 +7,212 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip as RechartsTooltip, 
-  Legend, 
-  ResponsiveContainer,
-  ComposedChart, 
-  Line, 
-  Area
+  ResponsiveContainer 
 } from 'recharts';
 import { useTelemetry } from '../contexts/TelemetryContext';
-import { BarChart3, Sun, Clock } from 'lucide-react';
+import { BarChart3, Clock, ArrowLeft, Radio } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import Link from 'next/link';
 
 export const AnalyticsDashboard: React.FC = () => {
-  const { solar, shiftKpis } = useTelemetry();
+  const { shiftKpis, looms } = useTelemetry();
 
-  // 7-day OEE trend data for Ali Haider Industries (with Today derived from active shift metrics)
-  const oeeData = useMemo(() => {
-    const currentEff = shiftKpis.averageEfficiency > 0 ? shiftKpis.averageEfficiency : 91.5;
-    const avail = ((shiftKpis.activeLoomsCount / 36) * 100);
+  const loomList = useMemo(() => {
+    return Object.values(looms).sort((a, b) => (a.loomNumber ?? 999) - (b.loomNumber ?? 999));
+  }, [looms]);
+
+  const hasData = loomList.length > 0 && (shiftKpis.totalPicks > 0 || shiftKpis.totalStops > 0);
+
+  // Downtime categories strictly compiled from real records
+  const downtimeData = useMemo(() => {
+    if (!hasData) return [];
     return [
-      { date: 'Mon', oee: 84.2, availability: 88.5, performance: 95.1, quality: 100 },
-      { date: 'Tue', oee: 86.4, availability: 89.8, performance: 96.2, quality: 100 },
-      { date: 'Wed', oee: 81.8, availability: 85.0, performance: 96.2, quality: 100 },
-      { date: 'Thu', oee: 87.1, availability: 90.5, performance: 96.2, quality: 100 },
-      { date: 'Fri', oee: 89.3, availability: 92.4, performance: 96.6, quality: 100 },
-      { date: 'Sat', oee: 90.8, availability: 93.9, performance: 96.7, quality: 100 },
-      { date: 'Today', oee: Number(currentEff.toFixed(1)), availability: Number(avail.toFixed(1)), performance: 96.7, quality: 100 },
+      { category: 'Warp Stop', count: shiftKpis.stopsByCategory.WARP },
+      { category: 'Weft / Filling', count: shiftKpis.stopsByCategory.FILLING },
+      { category: 'Selvedge', count: shiftKpis.stopsByCategory.SELVEDGE },
+      { category: 'Other Mechanical', count: shiftKpis.stopsByCategory.OTHER },
     ];
-  }, [shiftKpis.averageEfficiency, shiftKpis.activeLoomsCount]);
-
-  // Authentic Picanol Downtime Pareto (dynamically calculated from actual live shift stoppages across 36 Looms)
-  const paretoData = useMemo(() => {
-    const warpCount = shiftKpis.stopsByCategory.WARP;
-    const fillingCount = shiftKpis.stopsByCategory.FILLING;
-    const selvedgeCount = shiftKpis.stopsByCategory.SELVEDGE;
-    const otherCount = shiftKpis.stopsByCategory.OTHER;
-    const mttr = Math.max(1, Math.round(shiftKpis.mttrMinutes));
-
-    return [
-      { reason: 'Warp (Drop Wire)', minutes: Math.max(45, warpCount * (mttr * 18)) },
-      { reason: 'Weft FD1 (Feeder)', minutes: Math.max(30, fillingCount * (mttr * 12)) },
-      { reason: 'Weft FD2 (Clamp)', minutes: Math.max(15, Math.round(fillingCount * (mttr * 6))) },
-      { reason: 'Leno (ELSY)', minutes: Math.max(10, selvedgeCount * (mttr * 14)) },
-      { reason: 'Air Pressure', minutes: Math.max(5, otherCount > 0 ? 45 : 12) },
-      { reason: 'Maintenance', minutes: Math.max(10, otherCount * (mttr * 8)) },
-    ];
-  }, [shiftKpis.stopsByCategory, shiftKpis.mttrMinutes]);
-
-  const totalMinutesLost = useMemo(() => {
-    return paretoData.reduce((acc, curr) => acc + curr.minutes, 0);
-  }, [paretoData]);
-
-  // Huawei SUN2000 Inverter Generation vs Weaving Shed Load (kWh)
-  const energyData = useMemo(() => [
-    { date: 'Mon', solar_generation_kwh: 1220, factory_load_kwh: 1450 },
-    { date: 'Tue', solar_generation_kwh: 1380, factory_load_kwh: 1430 },
-    { date: 'Wed', solar_generation_kwh: 980, factory_load_kwh: 1480 },
-    { date: 'Thu', solar_generation_kwh: 1420, factory_load_kwh: 1410 },
-    { date: 'Fri', solar_generation_kwh: 1450, factory_load_kwh: 1420 },
-    { date: 'Sat', solar_generation_kwh: 1390, factory_load_kwh: 1360 },
-    { date: 'Sun', solar_generation_kwh: 1460, factory_load_kwh: 1210 },
-  ], []);
-
-  const currentEfficiency = shiftKpis.averageEfficiency > 0 ? shiftKpis.averageEfficiency.toFixed(1) : '91.8';
+  }, [hasData, shiftKpis.stopsByCategory]);
 
   return (
-    <div className="p-2.5 sm:p-5 space-y-3.5 sm:space-y-5 h-[calc(100dvh-56px)] overflow-y-auto overscroll-y-contain bg-[#e8ebf0]">
+    <div className="p-4 sm:p-6 min-h-[calc(100vh-56px)] bg-zinc-50 text-zinc-950 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <BarChart3 className="text-blue-600 flex-shrink-0" size={22} />
-            <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
-              Shift Production Analytics & OEE
+            <BarChart3 className="h-5 w-5 text-zinc-700" />
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-950">
+              Shift Production Analytics
             </h1>
           </div>
-          <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5">
-            Section 11 Verified Formulas • {shiftKpis.shift.name} • 36 Picanol Air-Jets
+          <p className="text-xs text-zinc-500 mt-1">
+            Real-time aggregate production performance for {shiftKpis.shift.name}
           </p>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <div className="bg-white px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 shadow-sm">
-            Active: <span className="text-blue-600 font-mono">{shiftKpis.shift.name}</span>
-          </div>
+          <Badge variant="outline" className="bg-white font-mono text-xs">
+            {shiftKpis.shift.name}
+          </Badge>
+          <Link href="/">
+            <Button variant="outline" size="sm" className="text-xs">
+              <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+              Floor Overview
+            </Button>
+          </Link>
         </div>
       </div>
 
-      {/* Section 11 Verified Shift KPI Summary Bar (2x3 on Phone, 6x1 on LG+) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Shift Efficiency</span>
-          <span className="text-xl sm:text-2xl font-black font-mono text-emerald-600 tabular-nums block mt-0.5">{shiftKpis.averageEfficiency}%</span>
-          <span className="text-[9px] text-slate-400 block mt-0.5">Run Ms / Shift Ms</span>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Average RPM</span>
-          <span className="text-xl sm:text-2xl font-black font-mono text-slate-900 tabular-nums block mt-0.5">{shiftKpis.averageRpm}</span>
-          <span className="text-[9px] text-slate-400 block mt-0.5">Picks / Run Min</span>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Shift Metres</span>
-          <span className="text-xl sm:text-2xl font-black font-mono text-slate-900 tabular-nums block mt-0.5">{shiftKpis.totalMetresWoven.toLocaleString()} m</span>
-          <span className="text-[9px] text-slate-400 block mt-0.5">27.2 & 38.2 p/cm</span>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">CMPX (Stops/10⁵)</span>
-          <span className="text-xl sm:text-2xl font-black font-mono text-amber-600 tabular-nums block mt-0.5">{shiftKpis.cmpxAverage}</span>
-          <span className="text-[9px] text-slate-400 block mt-0.5">Benchmark &lt; 5.0</span>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">MTBF</span>
-          <span className="text-xl sm:text-2xl font-black font-mono text-slate-900 tabular-nums block mt-0.5">{shiftKpis.mtbfMinutes}m</span>
-          <span className="text-[9px] text-slate-400 block mt-0.5">Between Stoppages</span>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">MTTR</span>
-          <span className="text-xl sm:text-2xl font-black font-mono text-slate-900 tabular-nums block mt-0.5">{shiftKpis.mttrMinutes}m</span>
-          <span className="text-[9px] text-slate-400 block mt-0.5">Mean Time To Repair</span>
-        </div>
+      {/* Primary KPI Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <Card className="p-3.5 bg-white border-zinc-200">
+          <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block">Shift Efficiency</span>
+          <span className="text-xl sm:text-2xl font-bold font-mono text-zinc-950 tabular-nums block mt-1">
+            {shiftKpis.averageEfficiency !== null ? `${shiftKpis.averageEfficiency.toFixed(1)}%` : '—'}
+          </span>
+          <span className="text-[10px] text-zinc-400 block mt-0.5">Runtime / Total</span>
+        </Card>
+
+        <Card className="p-3.5 bg-white border-zinc-200">
+          <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block">Running Speed</span>
+          <span className="text-xl sm:text-2xl font-bold font-mono text-zinc-950 tabular-nums block mt-1">
+            {shiftKpis.averageRpm > 0 ? `${shiftKpis.averageRpm} RPM` : '—'}
+          </span>
+          <span className="text-[10px] text-zinc-400 block mt-0.5">Fleet Average</span>
+        </Card>
+
+        <Card className="p-3.5 bg-white border-zinc-200">
+          <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block">Total Meters</span>
+          <span className="text-xl sm:text-2xl font-bold font-mono text-zinc-950 tabular-nums block mt-1">
+            {shiftKpis.totalMetresWoven.toFixed(1)} m
+          </span>
+          <span className="text-[10px] text-zinc-400 block mt-0.5">Cloth Woven</span>
+        </Card>
+
+        <Card className="p-3.5 bg-white border-zinc-200">
+          <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block">CMPX (Stops/10⁵)</span>
+          <span className="text-xl sm:text-2xl font-bold font-mono text-zinc-950 tabular-nums block mt-1">
+            {shiftKpis.cmpxAverage > 0 ? shiftKpis.cmpxAverage.toFixed(2) : '—'}
+          </span>
+          <span className="text-[10px] text-zinc-400 block mt-0.5">Stop Rate</span>
+        </Card>
+
+        <Card className="p-3.5 bg-white border-zinc-200">
+          <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block">MTBF</span>
+          <span className="text-xl sm:text-2xl font-bold font-mono text-zinc-950 tabular-nums block mt-1">
+            {shiftKpis.mtbfMinutes > 0 ? `${shiftKpis.mtbfMinutes.toFixed(1)} m` : '—'}
+          </span>
+          <span className="text-[10px] text-zinc-400 block mt-0.5">Mean Time Between</span>
+        </Card>
+
+        <Card className="p-3.5 bg-white border-zinc-200">
+          <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block">Total Stops</span>
+          <span className="text-xl sm:text-2xl font-bold font-mono text-zinc-950 tabular-nums block mt-1">
+            {shiftKpis.totalStops}
+          </span>
+          <span className="text-[10px] text-zinc-400 block mt-0.5">Recorded Stoppages</span>
+        </Card>
       </div>
 
-      {/* Top Analytics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-        {/* OEE Score Dial */}
-        <div className="bg-white p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-between min-h-[240px]">
-          <div className="w-full flex items-center justify-between">
-            <h3 className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600">
-              Equipment Effectiveness
-            </h3>
-            <span className="text-[9px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
-              WORLD CLASS &gt; 85%
-            </span>
+      {/* Downtime Breakdown Section */}
+      <Card className="p-5 bg-white border-zinc-200">
+        <CardHeader className="p-0 pb-4 mb-4 border-b border-zinc-100 flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-sm font-semibold text-zinc-950">
+              Shift Stoppages by Category
+            </CardTitle>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              Physical root causes detected via XP_CBMP_P9 optocoupler inputs
+            </p>
           </div>
+        </CardHeader>
 
-          <div className="my-3 relative w-32 h-32 sm:w-36 sm:h-36 rounded-full border-[8px] sm:border-[10px] border-emerald-500 flex flex-col items-center justify-center bg-slate-50">
-            <span className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tabular-nums">
-              {currentEfficiency}%
-            </span>
-            <span className="text-[9px] uppercase font-bold text-slate-400">Shift Efficiency</span>
-          </div>
-
-          <div className="w-full grid grid-cols-3 gap-1 pt-2.5 border-t border-slate-100 text-center font-mono">
-            <div>
-              <div className="text-xs sm:text-sm font-black text-slate-800 tabular-nums">
-                {((shiftKpis.activeLoomsCount / 36) * 100).toFixed(1)}%
-              </div>
-              <div className="text-[9px] text-slate-400 uppercase font-sans font-semibold">Availability</div>
-            </div>
-            <div>
-              <div className="text-xs sm:text-sm font-black text-slate-800 tabular-nums">96.3%</div>
-              <div className="text-[9px] text-slate-400 uppercase font-sans font-semibold">Performance</div>
-            </div>
-            <div>
-              <div className="text-xs sm:text-sm font-black text-slate-800 tabular-nums">100.0%</div>
-              <div className="text-[9px] text-slate-400 uppercase font-sans font-semibold">Quality</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Downtime Pareto Chart */}
-        <div className="bg-white p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm col-span-1 md:col-span-2 min-h-[240px] flex flex-col">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-              <Clock size={15} className="text-red-500" />
-              <span>Downtime Pareto: Minutes Lost (36 Looms)</span>
-            </h3>
-            <span className="text-[10px] font-mono text-slate-400">Total: {totalMinutesLost} min</span>
-          </div>
-
-          <div className="flex-1 w-full min-h-[180px]">
+        {hasData && downtimeData.length > 0 ? (
+          <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={paretoData} margin={{ top: 5, right: 10, left: -25, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+              <BarChart data={downtimeData} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
                 <XAxis 
-                  dataKey="reason" 
-                  stroke="#64748b" 
-                  fontSize={9} 
+                  dataKey="category" 
+                  tick={{ fontSize: 12, fill: '#71717a' }} 
+                  axisLine={{ stroke: '#e4e4e7' }} 
                   tickLine={false} 
-                  interval={0}
-                  angle={-15}
-                  textAnchor="end"
                 />
-                <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: '#71717a' }} 
+                  axisLine={{ stroke: '#e4e4e7' }} 
+                  tickLine={false} 
+                  allowDecimals={false}
+                />
                 <RechartsTooltip 
-                  cursor={{ fill: '#f1f5f9' }} 
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '11px' }} 
+                  contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e4e4e7', borderRadius: '6px', fontSize: '12px' }} 
                 />
-                <Bar dataKey="minutes" name="Minutes Lost" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={24} />
+                <Bar dataKey="count" fill="#18181b" radius={[4, 4, 0, 0]} name="Stops Count" />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
-      </div>
-
-      {/* Energy Management: Solar vs Factory Load */}
-      <div className="bg-white p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-3">
-          <div className="flex items-center gap-2">
-            <Sun className="text-amber-500 flex-shrink-0" size={18} />
-            <div>
-              <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">
-                Huawei SUN2000 Solar vs Weaving Shed Load (kWh)
-              </h3>
-              <p className="text-[10px] text-slate-500">
-                Live solar offset mitigating K-Electric peak industrial grid tariff
-              </p>
-            </div>
+        ) : (
+          <div className="py-12 text-center text-zinc-500">
+            <Radio className="h-8 w-8 mx-auto mb-2 text-zinc-400" />
+            <p className="text-sm font-medium text-zinc-700">No production data recorded for this shift yet</p>
+            <p className="text-xs text-zinc-400 mt-1">Stoppage charts will render when machines transmit shift pulses.</p>
           </div>
+        )}
+      </Card>
 
-          <div className="flex items-center gap-3 text-xs font-mono font-bold self-start sm:self-auto">
-            <span className="text-emerald-600">Solar: {solar.currentGenerationKw} kW</span>
-            <span className="text-slate-600">Load: {solar.factoryLoadKw} kW</span>
+      {/* Machine Performance Table */}
+      <Card className="p-5 bg-white border-zinc-200">
+        <CardHeader className="p-0 pb-4 mb-4 border-b border-zinc-100">
+          <CardTitle className="text-sm font-semibold text-zinc-950">
+            Individual Machine Shift Performance
+          </CardTitle>
+        </CardHeader>
+
+        {loomList.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-zinc-50 text-zinc-500 border-b border-zinc-200 font-medium">
+                <tr>
+                  <th className="py-2.5 px-3">Loom #</th>
+                  <th className="py-2.5 px-3">Machine ID</th>
+                  <th className="py-2.5 px-3">Model</th>
+                  <th className="py-2.5 px-3">Article</th>
+                  <th className="py-2.5 px-3 text-right">Speed</th>
+                  <th className="py-2.5 px-3 text-right">Efficiency</th>
+                  <th className="py-2.5 px-3 text-right">Shift Meters</th>
+                  <th className="py-2.5 px-3 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 font-mono">
+                {loomList.map(l => (
+                  <tr key={l.machineId} className="hover:bg-zinc-50/50">
+                    <td className="py-2.5 px-3 font-semibold font-sans text-zinc-950">
+                      {l.loomNumber ? `Loom ${l.loomNumber}` : 'Unassigned'}
+                    </td>
+                    <td className="py-2.5 px-3 text-zinc-600">{l.machineId}</td>
+                    <td className="py-2.5 px-3 font-sans text-zinc-700">{l.family}</td>
+                    <td className="py-2.5 px-3 font-sans text-zinc-600">{l.articleName || 'Standard'}</td>
+                    <td className="py-2.5 px-3 text-right font-semibold text-zinc-900">{l.rpm} RPM</td>
+                    <td className="py-2.5 px-3 text-right text-zinc-900">{l.efficiencyPercentage.toFixed(1)}%</td>
+                    <td className="py-2.5 px-3 text-right text-zinc-900">{l.metresWoven.toFixed(1)} m</td>
+                    <td className="py-2.5 px-3 text-center font-sans">
+                      <Badge variant={l.state === 'RUNNING' ? 'running' : l.state === 'STOPPED' ? 'stopped' : 'offline'}>
+                        {l.state}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-
-        <div className="h-56 sm:h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={energyData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorSolarAnalytic" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="date" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-              <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-              <RechartsTooltip 
-                contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '11px' }} 
-              />
-              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '6px' }} />
-              <Area 
-                type="monotone" 
-                dataKey="solar_generation_kwh" 
-                name="Solar (kWh)" 
-                stroke="#10b981" 
-                fillOpacity={1} 
-                fill="url(#colorSolarAnalytic)" 
-                strokeWidth={2} 
-              />
-              <Line 
-                type="monotone" 
-                dataKey="factory_load_kwh" 
-                name="Hall Load (kWh)" 
-                stroke="#475569" 
-                strokeWidth={2} 
-                dot={{ r: 3 }} 
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+        ) : (
+          <div className="py-8 text-center text-zinc-500 text-xs">
+            No looms registered on the factory network.
+          </div>
+        )}
+      </Card>
     </div>
   );
 };

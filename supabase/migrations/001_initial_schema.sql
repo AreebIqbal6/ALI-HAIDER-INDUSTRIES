@@ -1,30 +1,39 @@
 -- 001_initial_schema.sql: Section 10 (Data Contract v1) Schema & Machine Registry for Ali Haider Industries
+-- Strict Zero-Mock SCADA: Tables are created clean. No machines exist until hardware handshakes.
 
--- 1. LOOMS MASTER REGISTRY (36 Real Machines + Dynamic Scalability)
+-- 1. LOOMS MASTER REGISTRY (Auto-Registered & Operator Labeled)
 CREATE TABLE IF NOT EXISTS looms (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    machine_id VARCHAR(50) NOT NULL UNIQUE, -- Canonical e.g. "PIC-427708"
-    loom_number INTEGER NOT NULL UNIQUE CHECK (loom_number >= 1),
-    family VARCHAR(50) NOT NULL CHECK (family IN ('OmniPlus-i', 'OmniPlus Summum', 'OmniPlus 800')),
+    machine_id VARCHAR(50) NOT NULL UNIQUE, -- Canonical e.g. "PIC-427708" or "LOOM-E0E2E6"
+    device_id VARCHAR(50) UNIQUE,           -- Real hardware MAC address e.g. "E0:E2:E6:AA:BB:CC"
+    loom_number INTEGER UNIQUE CHECK (loom_number >= 1),
+    family VARCHAR(50) NOT NULL DEFAULT 'OmniPlus-i',
     year_recorded VARCHAR(20),
-    sources TEXT[] NOT NULL DEFAULT ARRAY['LDL']::text[],
+    article_name VARCHAR(100) DEFAULT 'Standard Weave',
+    sources TEXT[] NOT NULL DEFAULT ARRAY['HARDWARE']::text[],
     set_rpm INTEGER NOT NULL DEFAULT 850,
     weft_density_picks_per_cm NUMERIC(5, 2) NOT NULL DEFAULT 27.2,
     ip_address VARCHAR(45),
-    status VARCHAR(20) NOT NULL DEFAULT 'RUNNING' CHECK (status IN ('RUNNING', 'STOPPED', 'OFFLINE', 'UNKNOWN')),
+    firmware_version VARCHAR(50),
+    status VARCHAR(20) NOT NULL DEFAULT 'OFFLINE' CHECK (status IN ('RUNNING', 'STOPPED', 'OFFLINE', 'UNKNOWN')),
+    last_heartbeat_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 2. REAL-TIME LOOM STATE (ahi.loom.state/1.0 & ahi.loom.process/1.0)
+-- 2. REAL-TIME LOOM STATE (Live Hardware Telemetry)
 CREATE TABLE IF NOT EXISTS loom_live_state (
     machine_id VARCHAR(50) PRIMARY KEY REFERENCES looms(machine_id) ON DELETE CASCADE,
-    state VARCHAR(20) NOT NULL DEFAULT 'RUNNING' CHECK (state IN ('RUNNING', 'STOPPED', 'OFFLINE', 'UNKNOWN')),
+    device_id VARCHAR(50),
+    state VARCHAR(20) NOT NULL DEFAULT 'OFFLINE' CHECK (state IN ('RUNNING', 'STOPPED', 'OFFLINE', 'UNKNOWN')),
     stop_category VARCHAR(20) CHECK (stop_category IN ('WARP', 'FILLING', 'SELVEDGE', 'OTHER')),
     stop_id UUID,
     since TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     rpm INTEGER NOT NULL DEFAULT 0,
-    warp_tension_kn NUMERIC(5, 2) DEFAULT 1.90,
-    air_pressure_bar NUMERIC(5, 2) DEFAULT 7.35,
+    total_picks BIGINT NOT NULL DEFAULT 0,
+    meters_woven NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+    warp_tension_kn NUMERIC(5, 2),
+    air_pressure_bar NUMERIC(5, 2),
+    raw_pins JSONB DEFAULT '{}'::jsonb,
     operator_reason VARCHAR(10) CHECK (operator_reason IN ('ART', 'KNT', 'ELE', 'MEC', 'BST', 'DOF', 'OLS')),
     operator_note TEXT,
     declared_at TIMESTAMP WITH TIME ZONE,
@@ -33,7 +42,7 @@ CREATE TABLE IF NOT EXISTS loom_live_state (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 3. 1-MINUTE COUNTER WINDOWS (ahi.loom.counters/1.0)
+-- 3. 1-MINUTE COUNTER WINDOWS
 CREATE TABLE IF NOT EXISTS loom_minute_counters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     machine_id VARCHAR(50) NOT NULL REFERENCES looms(machine_id) ON DELETE CASCADE,
@@ -49,15 +58,16 @@ CREATE TABLE IF NOT EXISTS loom_minute_counters (
     stops_selvedge INTEGER NOT NULL DEFAULT 0,
     stops_other INTEGER NOT NULL DEFAULT 0,
     rpm_avg_running NUMERIC(6, 1) DEFAULT 0,
-    source VARCHAR(30) DEFAULT 'LDL',
+    source VARCHAR(30) DEFAULT 'WT32-ETH01',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE (machine_id, window_start)
 );
 
--- 4. CANONICAL LOOM EVENTS (ahi.loom.event/1.0 with UUIDv7 Idempotency)
+-- 4. CANONICAL LOOM EVENTS (UUIDv7 / Sequence Idempotency)
 CREATE TABLE IF NOT EXISTS loom_events (
-    msg_id UUID PRIMARY KEY, -- Idempotency key
+    msg_id UUID PRIMARY KEY,
     machine_id VARCHAR(50),
+    device_id VARCHAR(50),
     gateway_id VARCHAR(50),
     source VARCHAR(30),
     event_type VARCHAR(50) NOT NULL,
@@ -96,7 +106,7 @@ CREATE TABLE IF NOT EXISTS long_stop_declarations (
     declared_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- 6. GATEWAY & DEVICE HEALTH (Liveness tracking > 90s)
+-- 6. GATEWAY & DEVICE HEALTH
 CREATE TABLE IF NOT EXISTS gateway_health (
     gateway_id VARCHAR(50) PRIMARY KEY,
     last_seen_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -106,24 +116,7 @@ CREATE TABLE IF NOT EXISTS gateway_health (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 7. WEAVING SHED AMBIENT & SOLAR TELEMETRY
-CREATE TABLE IF NOT EXISTS factory_ambient_telemetry (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    main_air_pressure_bar NUMERIC(5, 2) NOT NULL,
-    hall_temperature_celsius NUMERIC(5, 2) NOT NULL,
-    hall_humidity_percentage NUMERIC(5, 2) NOT NULL,
-    recorded_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS solar_live_telemetry (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    current_generation_kw NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
-    daily_yield_kwh NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
-    factory_load_kw NUMERIC(10, 2) NOT NULL DEFAULT 315.00,
-    recorded_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-);
-
--- 8. ROW LEVEL SECURITY (RLS) POLICIES
+-- 7. ROW LEVEL SECURITY (RLS) POLICIES
 ALTER TABLE looms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE loom_live_state ENABLE ROW LEVEL SECURITY;
 ALTER TABLE loom_minute_counters ENABLE ROW LEVEL SECURITY;
@@ -131,8 +124,6 @@ ALTER TABLE loom_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE downtime_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE long_stop_declarations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gateway_health ENABLE ROW LEVEL SECURITY;
-ALTER TABLE factory_ambient_telemetry ENABLE ROW LEVEL SECURITY;
-ALTER TABLE solar_live_telemetry ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow public read access on looms" ON looms FOR SELECT USING (true);
 CREATE POLICY "Allow public read access on live state" ON loom_live_state FOR SELECT USING (true);
@@ -141,79 +132,12 @@ CREATE POLICY "Allow public read access on events" ON loom_events FOR SELECT USI
 CREATE POLICY "Allow public read access on downtime" ON downtime_logs FOR SELECT USING (true);
 CREATE POLICY "Allow public read access on declarations" ON long_stop_declarations FOR SELECT USING (true);
 CREATE POLICY "Allow public read access on gateway health" ON gateway_health FOR SELECT USING (true);
-CREATE POLICY "Allow public read access on ambient" ON factory_ambient_telemetry FOR SELECT USING (true);
-CREATE POLICY "Allow public read access on solar" ON solar_live_telemetry FOR SELECT USING (true);
 
-CREATE POLICY "Allow all on looms" ON looms FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on live state" ON loom_live_state FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on counters" ON loom_minute_counters FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on events" ON loom_events FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on downtime" ON downtime_logs FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on declarations" ON long_stop_declarations FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on gateway health" ON gateway_health FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on ambient" ON factory_ambient_telemetry FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on solar" ON solar_live_telemetry FOR ALL USING (true) WITH CHECK (true);
-
--- 9. SEED THE REAL 36 PICANOL LOOMS AT ALI HAIDER INDUSTRIES
--- Loom 1 is the Pilot Hardware Node (WT32-ETH01 + PC817 tapping XP_CBMP_P9)
-INSERT INTO looms (loom_number, machine_id, family, year_recorded, sources, set_rpm, weft_density_picks_per_cm, ip_address, status)
-VALUES
-  -- 25x OmniPlus-i (07-08/2021) -> Looms 1 to 25 (Loom 1 = PIC-427708 PILOT NODE)
-  (1,  'PIC-427708', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.101', 'RUNNING'),
-  (2,  'PIC-427709', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.102', 'RUNNING'),
-  (3,  'PIC-427710', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.103', 'RUNNING'),
-  (4,  'PIC-427711', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.104', 'STOPPED'),
-  (5,  'PIC-427712', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.105', 'RUNNING'),
-  (6,  'PIC-427713', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.106', 'RUNNING'),
-  (7,  'PIC-427714', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.107', 'RUNNING'),
-  (8,  'PIC-427715', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.108', 'RUNNING'),
-  (9,  'PIC-427716', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.109', 'STOPPED'),
-  (10, 'PIC-427717', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.110', 'RUNNING'),
-  (11, 'PIC-427718', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.111', 'RUNNING'),
-  (12, 'PIC-427719', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.112', 'RUNNING'),
-  (13, 'PIC-427720', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.113', 'RUNNING'),
-  (14, 'PIC-427721', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.114', 'RUNNING'),
-  (15, 'PIC-427722', 'OmniPlus-i', '07/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.115', 'RUNNING'),
-  (16, 'PIC-427723', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.116', 'RUNNING'),
-  (17, 'PIC-427724', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.117', 'STOPPED'),
-  (18, 'PIC-427725', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.118', 'RUNNING'),
-  (19, 'PIC-427726', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.119', 'RUNNING'),
-  (20, 'PIC-427727', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.120', 'RUNNING'),
-  (21, 'PIC-427728', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.121', 'RUNNING'),
-  (22, 'PIC-427729', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.122', 'RUNNING'),
-  (23, 'PIC-427730', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.123', 'RUNNING'),
-  (24, 'PIC-427731', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.124', 'RUNNING'),
-  (25, 'PIC-427732', 'OmniPlus-i', '08/2021', ARRAY['LDL', 'BICOM_ETH'], 874, 27.2, '192.168.10.125', 'RUNNING'),
-
-  -- 9x OmniPlus 800 (09/2005-02/2006) -> Looms 26 to 34
-  (26, 'PIC-279327', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.126', 'RUNNING'),
-  (27, 'PIC-278863', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.127', 'STOPPED'),
-  (28, 'PIC-279323', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.128', 'RUNNING'),
-  (29, 'PIC-279105', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.129', 'RUNNING'),
-  (30, 'PIC-279099', 'OmniPlus 800', '09/2005', ARRAY['LDL'], 501, 38.2, '192.168.20.130', 'RUNNING'),
-  (31, 'PIC-281560', 'OmniPlus 800', '02/2006', ARRAY['LDL'], 501, 38.2, '192.168.20.131', 'RUNNING'),
-  (32, 'PIC-281554', 'OmniPlus 800', '02/2006', ARRAY['LDL'], 501, 38.2, '192.168.20.132', 'STOPPED'),
-  (33, 'PIC-281553', 'OmniPlus 800', '02/2006', ARRAY['LDL'], 501, 38.2, '192.168.20.133', 'RUNNING'),
-  (34, 'PIC-281481', 'OmniPlus 800', '02/2006', ARRAY['LDL'], 501, 38.2, '192.168.20.134', 'RUNNING'),
-
-  -- 2x OmniPlus Summum (11/2012 & 05/2015) -> Looms 35 to 36
-  (35, 'PIC-332235', 'OmniPlus Summum', '11/2012', ARRAY['LDL', 'BICOM_ETH'], 850, 27.2, '192.168.10.135', 'RUNNING'),
-  (36, 'PIC-315816', 'OmniPlus Summum', '05/2015', ARRAY['LDL', 'BICOM_ETH'], 850, 27.2, '192.168.10.136', 'RUNNING')
-ON CONFLICT (machine_id) DO UPDATE 
-SET 
-  loom_number = EXCLUDED.loom_number, 
-  family = EXCLUDED.family, 
-  set_rpm = EXCLUDED.set_rpm, 
-  sources = EXCLUDED.sources;
-
--- Seed initial real-time state for each registered machine
-INSERT INTO loom_live_state (machine_id, state, stop_category, rpm, since, last_ts)
-SELECT 
-    l.machine_id,
-    l.status,
-    CASE WHEN l.status = 'STOPPED' THEN 'WARP' ELSE NULL END,
-    CASE WHEN l.status = 'RUNNING' THEN l.set_rpm ELSE 0 END,
-    NOW(),
-    NOW()
-FROM looms l
-ON CONFLICT (machine_id) DO NOTHING;
+-- Writes restricted to service_role and backend API
+CREATE POLICY "Allow service role all on looms" ON looms FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres' OR current_user = 'service_role') WITH CHECK (true);
+CREATE POLICY "Allow service role all on live state" ON loom_live_state FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres' OR current_user = 'service_role') WITH CHECK (true);
+CREATE POLICY "Allow service role all on counters" ON loom_minute_counters FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres' OR current_user = 'service_role') WITH CHECK (true);
+CREATE POLICY "Allow service role all on events" ON loom_events FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres' OR current_user = 'service_role') WITH CHECK (true);
+CREATE POLICY "Allow service role all on downtime" ON downtime_logs FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres' OR current_user = 'service_role') WITH CHECK (true);
+CREATE POLICY "Allow service role all on declarations" ON long_stop_declarations FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres' OR current_user = 'service_role') WITH CHECK (true);
+CREATE POLICY "Allow service role all on gateway health" ON gateway_health FOR ALL USING (auth.role() = 'service_role' OR current_user = 'postgres' OR current_user = 'service_role') WITH CHECK (true);

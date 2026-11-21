@@ -1,0 +1,11 @@
+# WeaveSync SCADA Zero-Mock Industrial Overhaul - Progress Log
+Started: 2026-11-22T00:30:29+05:00
+
+[2026-11-22 00:33:00] Initialized prd.json with 5 core user stories covering Zero-Mock, Dual-Mode Transport, Shadcn UI Redesign, WT32-ETH01 Firmware, and Security/Verification.
+[2026-11-22 00:33:05] Initiated installation of core UI & schema validation dependencies (zod, clsx, tailwind-merge, class-variance-authority, radix-ui primitives).
+[2026-11-22 00:37:30] Completed Milestone 2: Cleaned migrations, eliminated hardcoded 36-loom seed, created docs/fleet-reference.md, dynamic RPCs with zero-division safety and no mock fallbacks.
+[2026-11-22 00:40:25] Completed Milestone 3: Hardened API routes with Zod schemas, x-weavesync-key auth, hardware auto-registration on handshake, localStore fallback, and /api/live/state endpoint.
+[2026-11-22 00:42:10] Completed Milestone 4: TelemetryContext overhauled to strict zero-mock. Starting state is empty {}, truthful dual-mode status (CLOUD_LIVE, LOCAL_LAN, DISCONNECTED), offline temporal status calculation, and configureLoom action.
+[2026-11-22 00:49:25] Completed Milestone 5: Shadcn UI rebuild complete. Cohesive light industrial canvas (bg-zinc-50), pure flat white cards, single truthful header status pill, 4-KPI strip without fake climate, authoritative empty state for 0 looms, stop reason modal with 7 ISO codes, read-only machine detail with real Hardware Diagnostics tab, solar chart deleted from /analytics, custom 404 page, and productionBrowserSourceMaps: false.
+[2026-11-22 00:51:15] Completed Milestone 6: Hardened WT32-ETH01 firmware. Starts totalPicks at 0, reads real MAC via ETH.macAddress(), strict safe pins (4, 32, 33, 14), 1:1 hardware PCNT without double-counting, #ifndef PHY macros, 5s periodic heartbeat + immediate edge push with x-weavesync-key header.
+[2026-11-22 00:56:00] Completed Milestone 7: Standalone external verification suite (scripts/verify-pilot-ready.mjs) passed 6/6 tests. edge-gateway TypeScript passed with 0 errors. Root Next.js production build (npm run build) passed with 0 errors. All 5 user stories in prd.json marked as passed: true.
