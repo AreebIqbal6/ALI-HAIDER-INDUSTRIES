@@ -2,11 +2,17 @@
 import { useTelemetry } from '../contexts/TelemetryContext';
 
 export const useFactoryTelemetry = () => {
-  const { looms, shiftKpis, systemStatus } = useTelemetry();
+  const { looms, ambient, solar, shiftKpis, gatewayHealth, connectionStatus, isLiveGateway, mockMode } = useTelemetry();
+
   const loomList = Object.values(looms);
 
   return {
     factoryState: {
+      ambient: {
+        temperature_c: ambient.hallTemperatureCelsius,
+        humidity_percent: ambient.hallHumidityPercentage,
+        air_pressure_bar: ambient.mainAirPressureBar,
+      },
       running_looms: shiftKpis.activeLoomsCount,
       stopped_looms: shiftKpis.stoppedLoomsCount,
       offline_looms: shiftKpis.offlineLoomsCount,
@@ -14,7 +20,11 @@ export const useFactoryTelemetry = () => {
       looms: loomList,
     },
     shiftKpis,
-    systemStatus,
+    gatewayHealth,
+    solar,
+    connectionStatus,
+    isLiveGateway,
+    mockMode: mockMode ?? false,
     loading: false,
     error: null,
   };
