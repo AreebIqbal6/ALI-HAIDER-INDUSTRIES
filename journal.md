@@ -48,3 +48,22 @@ Supabase free tier automatically paused project `ALI-HAIDER-INDUSTRIES` due to a
 1. **Laptop Ethernet Interface (`START_PILOT.bat`)**: Automated physical adapter detection in PowerShell. Configures static IP `192.168.10.1`, subnet mask `255.255.255.0`, and default gateway `none` to prevent hijacking Wi-Fi/cellular hotspot internet. Sets network profile to `Private` and opens firewall ports 3000, 4841, 1883.
 2. **WT32-ETH01 Static IP Fallback**: Requests DHCP for 2.5s; falls back to static IP `192.168.10.2` (gateway `192.168.10.1`). On direct cable link-up without DHCP, firmware explicitly asserts `eth_connected = true` and retrieves the hardware MAC.
 3. **Schema & Telemetry Unification**: Unified `DirectHardwarePayloadSchema` and `/api/ingest/v1/batch` to accept both raw hardware frames (`picksTotal`, `fw`, `rawPinHistory` at root) and canonical envelopes with `x-weavesync-key` validation. Ingest ACK returns HTTP 200 with clear 1-line serial diagnostic telemetry every 5s.
+
+## [2026-11-23] Unslop Execution: Polish Mode & Anti-AI-Slop Refinement
+
+### Direction
+- **Product:** Industrial SCADA and telemetry monitor for airjet weaving looms at Ali Haider Industries.
+- **Character:** Exact, calm, mechanical.
+- **World:** Weaving shed floor, steel reed frames, yarn cones, and control cabinets under shift lighting.
+- **Moments:** 
+  1. The live beat-up pulse and optocoupler pin inspector with 1:1 hardware transition timings.
+  2. The shift downtime Pareto chart mapping warp, weft, and mechanical stop minutes.
+- **Signature:** A crisp mono beat-up frequency reading (`874 RPM · 14.57 Hz`) and mill status dot without decorative halos.
+
+### 9-Pass Refinement Summary
+1. **Spacing:** Standardized all margins, paddings, and card gaps to the 4px scale. Balanced rhythm in stat grids and removed arbitrary sizing.
+2. **Color:** Neutralized chrome and stat numbers to unified dark slate ink (`text-slate-900`), removing artificial green and blue fills from basic counts and meters. Calmed active tab states to refined surface steps (`bg-slate-800` / `bg-slate-900`) with hairlines.
+3. **Icons:** Removed decorative and redundant icons (bar chart before analytics title, clock before downtime Pareto, gauge before telemetry table). Retained only purposeful line icons at 14–16px stroke 1.5. Eliminated blurry glowing halos around status dots.
+4. **Copy & Type:** Replaced shouty ALL-CAPS uppercase tracked labels (`SHIFT EFFICIENCY`, `ACTIVE RUNNING`) with professional sentence-case typography (`Shift efficiency`, `Active looms`, `Shift output`). Removed formulaic subtext (`Verified (Run / Elapsed)` -> `Target: 92.0%`).
+5. **Details & Radii:** Nested radii (`rounded-xl` for cards, `rounded-lg` for inputs/controls, eliminated arbitrary full pills). Removed duplicate connection status pill from the floor subheader so the shift context breathes cleanly.
+6. **Verification:** `npm run build` compiled with code 0. `npm run verify-pilot` passed 5/5. Playwright headless browser audit confirmed 0 console errors and 0 warnings.

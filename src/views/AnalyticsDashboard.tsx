@@ -54,68 +54,65 @@ export const AnalyticsDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <div className="flex items-center gap-2">
-            <BarChart3 className="text-blue-600 flex-shrink-0" size={22} />
-            <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
-              Shift Production Analytics & OEE
-            </h1>
-          </div>
-          <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5">
-            Active Shift: {shiftKpis.shift.name} • {hasConnectedLooms ? `${totalLooms} Connected Machine${totalLooms > 1 ? 's' : ''}` : 'No Looms Connected'}
+          <h1 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight leading-tight">
+            Shift Production Analytics & OEE
+          </h1>
+          <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+            Active shift: {shiftKpis.shift.name} • {hasConnectedLooms ? `${totalLooms} connected machine${totalLooms > 1 ? 's' : ''}` : 'No looms connected'}
           </p>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <div className="bg-white px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 shadow-sm flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>Active: <span className="text-blue-600 font-mono">{shiftKpis.shift.name}</span></span>
+          <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200/90 text-xs font-medium text-slate-700 shadow-sm flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>Shift: <span className="font-mono text-slate-900 font-semibold">{shiftKpis.shift.name}</span></span>
           </div>
         </div>
       </div>
 
       {/* Shift KPI Summary Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Shift Efficiency</span>
-          <span className="text-xl sm:text-2xl font-black font-mono text-emerald-600 tabular-nums block mt-0.5">
-            {shiftKpis.averageEfficiency !== null ? `${shiftKpis.averageEfficiency}%` : '—'}
+        <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
+          <span className="text-xs font-medium text-slate-500 block">Shift efficiency</span>
+          <span className="text-xl sm:text-2xl font-bold font-mono text-slate-900 tabular-nums block mt-1">
+            {shiftKpis.averageEfficiency !== null ? `${shiftKpis.averageEfficiency.toFixed(1)}%` : '—'}
           </span>
-          <span className="text-[9px] text-slate-400 block mt-0.5">Run Time / Elapsed Time</span>
+          <span className="text-[11px] text-slate-500 block mt-0.5">Target: 92.0%</span>
         </div>
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Average RPM</span>
-          <span className="text-xl sm:text-2xl font-black font-mono text-slate-900 tabular-nums block mt-0.5">
-            {hasConnectedLooms ? shiftKpis.averageRpm : '—'}
+        <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
+          <span className="text-xs font-medium text-slate-500 block">Average speed</span>
+          <span className="text-xl sm:text-2xl font-bold font-mono text-slate-900 tabular-nums block mt-1">
+            {hasConnectedLooms ? `${shiftKpis.averageRpm} RPM` : '—'}
           </span>
-          <span className="text-[9px] text-slate-400 block mt-0.5">Picks / Run Minute</span>
+          <span className="text-[11px] text-slate-500 block mt-0.5">Picks / run minute</span>
         </div>
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Shift Output</span>
-          <span className="text-xl sm:text-2xl font-black font-mono text-slate-900 tabular-nums block mt-0.5">
+        <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
+          <span className="text-xs font-medium text-slate-500 block">Shift output</span>
+          <span className="text-xl sm:text-2xl font-bold font-mono text-slate-900 tabular-nums block mt-1">
             {hasConnectedLooms ? `${shiftKpis.totalMetresWoven.toLocaleString()} m` : '—'}
           </span>
-          <span className="text-[9px] text-slate-400 block mt-0.5">Fabric Woven This Shift</span>
+          <span className="text-[11px] text-slate-500 block mt-0.5">Meters woven</span>
         </div>
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">CMPX (Stops/10⁵)</span>
-          <span className="text-xl sm:text-2xl font-black font-mono text-amber-600 tabular-nums block mt-0.5">
-            {hasConnectedLooms ? shiftKpis.cmpxAverage : '—'}
+        <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
+          <span className="text-xs font-medium text-slate-500 block">Stop frequency</span>
+          <span className="text-xl sm:text-2xl font-bold font-mono text-slate-900 tabular-nums block mt-1">
+            {hasConnectedLooms ? shiftKpis.cmpxAverage.toFixed(2) : '—'}
           </span>
-          <span className="text-[9px] text-slate-400 block mt-0.5">Benchmark &lt; 5.0</span>
+          <span className="text-[11px] text-slate-500 block mt-0.5">CMPX (stops/10⁵)</span>
         </div>
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">MTBF</span>
-          <span className="text-xl sm:text-2xl font-black font-mono text-slate-900 tabular-nums block mt-0.5">
+        <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
+          <span className="text-xs font-medium text-slate-500 block">MTBF</span>
+          <span className="text-xl sm:text-2xl font-bold font-mono text-slate-900 tabular-nums block mt-1">
             {hasConnectedLooms && shiftKpis.mtbfMinutes > 0 ? `${shiftKpis.mtbfMinutes}m` : '—'}
           </span>
-          <span className="text-[9px] text-slate-400 block mt-0.5">Mean Time Between Stops</span>
+          <span className="text-[11px] text-slate-500 block mt-0.5">Mean run between stops</span>
         </div>
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">MTTR</span>
-          <span className="text-xl sm:text-2xl font-black font-mono text-slate-900 tabular-nums block mt-0.5">
+        <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
+          <span className="text-xs font-medium text-slate-500 block">MTTR</span>
+          <span className="text-xl sm:text-2xl font-bold font-mono text-slate-900 tabular-nums block mt-1">
             {hasConnectedLooms && shiftKpis.mttrMinutes > 0 ? `${shiftKpis.mttrMinutes}m` : '—'}
           </span>
-          <span className="text-[9px] text-slate-400 block mt-0.5">Mean Time To Repair</span>
+          <span className="text-[11px] text-slate-500 block mt-0.5">Mean repair duration</span>
         </div>
       </div>
 
@@ -141,56 +138,55 @@ export const AnalyticsDashboard: React.FC = () => {
           {/* Top Analytics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
             {/* OEE Score Dial */}
-            <div className="bg-white p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-between min-h-[240px]">
+            <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/90 shadow-sm flex flex-col items-center justify-between min-h-[240px]">
               <div className="w-full flex items-center justify-between">
-                <h3 className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Equipment Effectiveness
+                <h3 className="text-xs font-medium text-slate-700">
+                  Equipment effectiveness
                 </h3>
-                <span className="text-[9px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
-                  {shiftKpis.averageEfficiency !== null && shiftKpis.averageEfficiency >= 85 ? 'TARGET MET' : 'OPERATIONAL'}
+                <span className="text-[10px] font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                  {shiftKpis.averageEfficiency !== null && shiftKpis.averageEfficiency >= 85 ? 'Target met' : 'Operational'}
                 </span>
               </div>
 
               <div className="my-3 relative w-32 h-32 sm:w-36 sm:h-36 rounded-full border-[8px] sm:border-[10px] border-emerald-500 flex flex-col items-center justify-center bg-slate-50">
-                <span className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tabular-nums">
+                <span className="text-3xl sm:text-4xl font-bold text-slate-900 font-mono tabular-nums">
                   {currentEfficiency}%
                 </span>
-                <span className="text-[9px] uppercase font-bold text-slate-400">Shift Efficiency</span>
+                <span className="text-[11px] font-medium text-slate-500">Shift efficiency</span>
               </div>
 
               <div className="w-full grid grid-cols-3 gap-1 pt-2.5 border-t border-slate-100 text-center font-mono">
                 <div>
-                  <div className="text-xs sm:text-sm font-black text-slate-800 tabular-nums">
+                  <div className="text-xs sm:text-sm font-bold text-slate-800 tabular-nums">
                     {availabilityPct !== null ? `${availabilityPct}%` : '—'}
                   </div>
-                  <div className="text-[9px] text-slate-400 uppercase font-sans font-semibold">Availability</div>
+                  <div className="text-[10px] text-slate-500 font-sans font-medium">Availability</div>
                 </div>
                 <div>
-                  <div className="text-xs sm:text-sm font-black text-slate-800 tabular-nums">
+                  <div className="text-xs sm:text-sm font-bold text-slate-800 tabular-nums">
                     {shiftKpis.averageRpm > 0 ? `${((shiftKpis.averageRpm / 600) * 100).toFixed(1)}%` : '—'}
                   </div>
-                  <div className="text-[9px] text-slate-400 uppercase font-sans font-semibold">Performance</div>
+                  <div className="text-[10px] text-slate-500 font-sans font-medium">Performance</div>
                 </div>
                 <div>
-                  <div className="text-xs sm:text-sm font-black text-slate-800 tabular-nums">100.0%</div>
-                  <div className="text-[9px] text-slate-400 uppercase font-sans font-semibold">Quality</div>
+                  <div className="text-xs sm:text-sm font-bold text-slate-800 tabular-nums">100.0%</div>
+                  <div className="text-[10px] text-slate-500 font-sans font-medium">Quality</div>
                 </div>
               </div>
             </div>
 
             {/* Downtime Pareto Chart */}
-            <div className="bg-white p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm col-span-1 md:col-span-2 min-h-[240px] flex flex-col">
+            <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/90 shadow-sm col-span-1 md:col-span-2 min-h-[240px] flex flex-col">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <Clock size={15} className="text-red-500" />
-                  <span>Downtime Pareto: Minutes Lost ({totalLooms} Machine{totalLooms > 1 ? 's' : ''})</span>
+                <h3 className="text-xs font-semibold text-slate-700">
+                  Downtime Pareto: minutes lost ({totalLooms} machine{totalLooms > 1 ? 's' : ''})
                 </h3>
-                <span className="text-[10px] font-mono text-slate-400">Total: {totalMinutesLost} min</span>
+                <span className="text-xs font-mono text-slate-500">Total: {totalMinutesLost} min</span>
               </div>
 
               {totalMinutesLost === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-slate-400">
-                  <span className="text-xs font-semibold">Zero downtime minutes recorded for this shift.</span>
+                  <span className="text-xs font-medium">Zero downtime minutes recorded for this shift.</span>
                 </div>
               ) : (
                 <div className="flex-1 w-full min-h-[180px]">
@@ -211,7 +207,7 @@ export const AnalyticsDashboard: React.FC = () => {
                         cursor={{ fill: '#f1f5f9' }} 
                         contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '11px' }} 
                       />
-                      <Bar dataKey="minutes" name="Minutes Lost" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={28} />
+                      <Bar dataKey="minutes" name="Minutes Lost" fill="#475569" radius={[4, 4, 0, 0]} barSize={28} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -220,30 +216,27 @@ export const AnalyticsDashboard: React.FC = () => {
           </div>
 
           {/* Connected Fleet Production Summary Table */}
-          <div className="bg-white p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/90 shadow-sm">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Gauge className="text-blue-600" size={18} />
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800">
-                  Live Machine Telemetry Breakdown
-                </h3>
-              </div>
-              <span className="text-xs font-mono text-slate-500 font-bold">
-                {loomsList.length} Connected
+              <h3 className="text-xs sm:text-sm font-semibold text-slate-800">
+                Live machine telemetry breakdown
+              </h3>
+              <span className="text-xs font-mono text-slate-500">
+                {loomsList.length} connected
               </span>
             </div>
 
             <div className="overflow-x-auto scrollbar-none">
               <table className="w-full text-left text-xs min-w-[600px]">
-                <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[9px] border-b border-slate-200">
+                <thead className="bg-slate-50 text-slate-600 font-medium text-[11px] border-b border-slate-200">
                   <tr>
                     <th className="py-2.5 px-3">Loom</th>
                     <th className="py-2.5 px-3">Hardware ID</th>
                     <th className="py-2.5 px-3">Status</th>
                     <th className="py-2.5 px-3">Speed (RPM)</th>
-                    <th className="py-2.5 px-3">Shift Efficiency</th>
-                    <th className="py-2.5 px-3">Fabric Output</th>
-                    <th className="py-2.5 px-3">Total Picks</th>
+                    <th className="py-2.5 px-3">Shift efficiency</th>
+                    <th className="py-2.5 px-3">Fabric output</th>
+                    <th className="py-2.5 px-3">Total picks</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium font-mono text-slate-700">

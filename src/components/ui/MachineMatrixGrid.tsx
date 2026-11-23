@@ -172,10 +172,10 @@ export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
           <button
             onClick={() => setActiveFilter('ALL')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
               activeFilter === 'ALL'
-                ? 'bg-slate-900 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             All ({rawLoomList.length})
@@ -183,38 +183,38 @@ export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({
 
           <button
             onClick={() => setActiveFilter('RUNNING')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
               activeFilter === 'RUNNING'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             <span>Running ({runningCount})</span>
           </button>
 
           <button
             onClick={() => setActiveFilter('STOPPED')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
               activeFilter === 'STOPPED'
-                ? 'bg-red-600 text-white'
-                : 'bg-red-50 text-red-800 border border-red-200 hover:bg-red-100'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-red-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
             <span>Stopped ({stoppedCount})</span>
           </button>
 
           <button
             onClick={() => setActiveFilter('LONG_STOP')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
               activeFilter === 'LONG_STOP'
-                ? 'bg-amber-600 text-white'
-                : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
-            <AlertTriangle size={12} className={activeFilter === 'LONG_STOP' ? 'text-white' : 'text-amber-600'} />
-            <span>Long Stop &gt;5m ({longStopCount})</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span>Long stop &gt;5m ({longStopCount})</span>
           </button>
         </div>
 
@@ -308,26 +308,26 @@ export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({
 
                     <div className="flex items-center gap-1.5">
                       {loom.isPilotNode && (
-                        <span className="text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 uppercase tracking-wider flex items-center gap-1 border border-blue-200">
-                          NODE
+                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                          Node
                         </span>
                       )}
-                      <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
                         isRunning 
-                          ? 'bg-emerald-500 ring-2 sm:ring-4 ring-emerald-100' 
+                          ? 'bg-emerald-500' 
                           : isOffline
-                          ? 'bg-slate-400 ring-2 sm:ring-4 ring-slate-100'
-                          : 'bg-red-500 ring-2 sm:ring-4 ring-red-100 animate-pulse'
+                          ? 'bg-slate-400'
+                          : 'bg-red-500'
                       }`} />
                     </div>
                   </div>
 
                   {/* Family & Protocol Pill */}
                   <div className="flex items-center gap-1 mt-1 flex-wrap">
-                    <span className="text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 truncate max-w-[90px] sm:max-w-none">
+                    <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 truncate max-w-[90px] sm:max-w-none">
                       {loom.family}
                     </span>
-                    <span className="text-[8px] sm:text-[9px] font-mono font-semibold px-1 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                    <span className="text-[9px] font-mono text-slate-500 px-1 py-0.5 rounded bg-slate-50 border border-slate-200">
                       {loom.sources.join(', ')}
                     </span>
                   </div>
@@ -336,17 +336,17 @@ export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({
                 {/* Middle Metrics: Efficiency & State */}
                 <div className="my-1.5">
                   <div className="flex items-baseline justify-between">
-                    <span className="text-lg sm:text-2xl font-mono font-black text-slate-900 tracking-tight tabular-nums">
+                    <span className="text-lg sm:text-2xl font-mono font-bold text-slate-900 tracking-tight tabular-nums">
                       {loom.efficiencyPercentage.toFixed(1)}%
                     </span>
-                    <span className={`text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
                       isRunning 
-                        ? 'bg-emerald-100 text-emerald-800' 
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60' 
                         : isOffline
-                        ? 'bg-slate-200 text-slate-700'
-                        : 'bg-red-100 text-red-800'
+                        ? 'bg-slate-100 text-slate-600 border-slate-200'
+                        : 'bg-red-50 text-red-800 border-red-200/60'
                     }`}>
-                      {loom.state}
+                      {isRunning ? 'Running' : isOffline ? 'Offline' : (loom.stopCategory ? `${loom.stopCategory.charAt(0) + loom.stopCategory.slice(1).toLowerCase()}` : 'Stopped')}
                     </span>
                   </div>
 
@@ -422,8 +422,8 @@ export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({
                     <span className="text-[9px] font-normal text-slate-400 ml-0.5">RPM</span>
                   </div>
 
-                  <div className="text-[10px] font-bold text-blue-600 group-hover:text-blue-800 flex items-center gap-0.5 transition-colors">
-                    <span>Inspect</span> <ArrowRight size={10} />
+                  <div className="text-[11px] font-medium text-slate-500 group-hover:text-slate-900 transition-colors">
+                    <span>Inspect</span>
                   </div>
                 </div>
               </div>

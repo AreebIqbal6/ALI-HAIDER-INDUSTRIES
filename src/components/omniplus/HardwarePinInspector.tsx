@@ -42,11 +42,11 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
     {
       id: 'PI_STRT',
       pinNum: 'XP Pin 9 -> GPIO 4',
-      name: 'Run/Stop Status',
+      name: 'Run / Stop Status',
       active: Boolean(pinData.piStrt),
       description: 'SUMO motor drive enable status signal (GPIO 4)',
-      activeColor: 'bg-emerald-500 text-emerald-400 border-emerald-500/40',
-      inactiveColor: 'bg-slate-800 text-slate-500 border-slate-700'
+      activeColor: 'bg-emerald-950/70 text-emerald-300 border-emerald-700/60',
+      inactiveColor: 'bg-slate-900/60 text-slate-500 border-slate-800'
     },
     {
       id: 'PI_PP',
@@ -54,8 +54,8 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
       name: 'Pick Pulse (Beat-Up)',
       active: Boolean(pinData.piPp),
       description: 'ESP32 Hardware PCNT counter register (GPIO 32, 200 APB cycle glitch filter)',
-      activeColor: 'bg-blue-500 text-blue-400 border-blue-500/40',
-      inactiveColor: 'bg-slate-800 text-slate-500 border-slate-700'
+      activeColor: 'bg-slate-800 text-slate-200 border-slate-600',
+      inactiveColor: 'bg-slate-900/60 text-slate-500 border-slate-800'
     },
     {
       id: 'PI_WD',
@@ -63,8 +63,8 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
       name: 'Warp Stop Trigger',
       active: Boolean(pinData.piWd),
       description: 'TSF drop wire bus contact closure (GPIO 33)',
-      activeColor: 'bg-red-500 text-red-400 border-red-500/40',
-      inactiveColor: 'bg-slate-800 text-slate-500 border-slate-700'
+      activeColor: 'bg-red-950/70 text-red-300 border-red-700/60',
+      inactiveColor: 'bg-slate-900/60 text-slate-500 border-slate-800'
     },
     {
       id: 'PI_FD',
@@ -72,8 +72,8 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
       name: 'Filling (Weft) Stop',
       active: Boolean(pinData.piFd),
       description: 'FD1/FD2 optical sensor arrival check (GPIO 14)',
-      activeColor: 'bg-amber-500 text-amber-400 border-amber-500/40',
-      inactiveColor: 'bg-slate-800 text-slate-500 border-slate-700'
+      activeColor: 'bg-amber-950/70 text-amber-300 border-amber-700/60',
+      inactiveColor: 'bg-slate-900/60 text-slate-500 border-slate-800'
     }
   ];
 
@@ -82,7 +82,7 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
       {/* Header: Node Identity & Audit Badge */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-700 gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-xl bg-blue-950/80 border border-blue-500/50 flex items-center justify-center text-blue-400 shadow-sm flex-shrink-0">
+          <div className="h-9 w-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 shadow-sm flex-shrink-0">
             <Cpu size={18} />
           </div>
           <div>
@@ -90,8 +90,8 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
               <h3 className="font-mono text-sm sm:text-base font-bold text-white tracking-tight leading-tight">
                 XP_CBMP_P9 Hardware Pin Inspector
               </h3>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-700">
-                LIVE
+              <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                Live
               </span>
             </div>
             <p className="text-[11px] text-slate-400">
@@ -103,7 +103,7 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
         {/* Network & Node Telemetry Badge */}
         <div className="flex items-center gap-2 text-xs font-mono self-start sm:self-auto">
           <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 flex items-center gap-1.5">
-            <Network size={12} className="text-emerald-400" />
+            <Network size={12} className="text-slate-400" />
             <span>{diag.ipAddress || '192.168.10.101'}</span>
           </span>
           <span className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 text-[10px]">
@@ -124,20 +124,20 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
             }`}
           >
             <div className="flex items-center justify-between mb-1.5">
-              <span className="font-mono font-bold text-xs text-white">
+              <span className="font-mono font-semibold text-xs text-white">
                 {pin.id}
               </span>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black border uppercase tracking-wider ${
+              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium border ${
                 pin.active ? pin.activeColor : pin.inactiveColor
               }`}>
-                {pin.active ? 'HIGH (1)' : 'LOW (0)'}
+                {pin.active ? 'High (1)' : 'Low (0)'}
               </span>
             </div>
 
-            <div className="text-[11px] font-bold text-slate-300">
+            <div className="text-[11px] font-medium text-slate-200">
               {pin.name}
             </div>
-            <div className="text-[10px] font-mono text-blue-400 mt-0.5">
+            <div className="text-[10px] font-mono text-slate-400 mt-0.5">
               {pin.pinNum}
             </div>
             <p className="text-[10px] text-slate-400 mt-1 leading-snug">

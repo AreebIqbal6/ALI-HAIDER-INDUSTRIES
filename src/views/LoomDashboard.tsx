@@ -106,38 +106,38 @@ export const LoomDashboard: React.FC = () => {
       </div>
 
       {/* Navigation Sub-Tabs */}
-      <div className="bg-white px-2 sm:px-4 border-b border-slate-200 flex gap-1 sm:gap-2 overflow-x-auto scrollbar-none py-1">
+      <div className="bg-white px-2 sm:px-4 border-b border-slate-200 flex gap-1 sm:gap-2 overflow-x-auto scrollbar-none py-1.5">
         <button
           onClick={() => setActiveTab('subsystems')}
-          className={`flex items-center gap-1.5 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+          className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'subsystems'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
+              ? 'bg-slate-900 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <Cpu size={15} />
+          <Cpu size={14} />
           <span>Operational Overview</span>
         </button>
         <button
           onClick={() => setActiveTab('hardware')}
-          className={`flex items-center gap-1.5 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+          className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'hardware'
-              ? 'bg-amber-600 text-white shadow-sm'
-              : 'text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100'
+              ? 'bg-slate-900 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <Zap size={15} className={activeTab === 'hardware' ? 'text-white' : 'text-amber-600'} />
+          <Zap size={14} />
           <span>Hardware Diagnostics</span>
         </button>
         <button
           onClick={() => setActiveTab('logs')}
-          className={`flex items-center gap-1.5 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+          className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'logs'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
+              ? 'bg-slate-900 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <List size={15} />
+          <List size={14} />
           <span>Shift Stoppage Log</span>
         </button>
       </div>
@@ -177,51 +177,51 @@ export const LoomDashboard: React.FC = () => {
 
             {/* Quick KPI Overview */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-              <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Pick Rate (RPM)
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
+                <span className="text-xs font-medium text-slate-500 block">
+                  Pick rate (RPM)
                 </span>
-                <div className="text-xl sm:text-3xl font-black font-mono tabular-nums text-slate-900 mt-0.5">
+                <div className="text-xl sm:text-3xl font-bold font-mono tabular-nums text-slate-900 mt-0.5">
                   {loom.rpm}
                 </div>
-                <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5">
-                  Rated: {loom.setRpm} Max
+                <span className="text-[11px] text-slate-500 block mt-0.5">
+                  {loom.setRpm} RPM rated
                 </span>
               </div>
 
-              <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
+                <span className="text-xs font-medium text-slate-500 block">
                   Efficiency
                 </span>
-                <div className="text-xl sm:text-3xl font-black font-mono tabular-nums text-emerald-600 mt-0.5">
+                <div className="text-xl sm:text-3xl font-bold font-mono tabular-nums text-slate-900 mt-0.5">
                   {loom.efficiencyPercentage.toFixed(1)}%
                 </div>
-                <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono block mt-0.5">
+                <span className="text-[11px] text-slate-500 font-mono block mt-0.5">
                   Run: {(loom.runMsShift / 3600000).toFixed(1)}h
                 </span>
               </div>
 
-              <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Metres Woven
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
+                <span className="text-xs font-medium text-slate-500 block">
+                  Meters woven
                 </span>
-                <div className="text-xl sm:text-3xl font-black font-mono tabular-nums text-slate-900 mt-0.5">
+                <div className="text-xl sm:text-3xl font-bold font-mono tabular-nums text-slate-900 mt-0.5">
                   {loom.metresWoven.toFixed(1)} m
                 </div>
-                <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono block mt-0.5">
+                <span className="text-[11px] text-slate-500 font-mono block mt-0.5">
                   {loom.picksDeltaShift.toLocaleString()} picks
                 </span>
               </div>
 
-              <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                  CMPX (Stops/10⁵)
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
+                <span className="text-xs font-medium text-slate-500 block">
+                  Stop frequency
                 </span>
-                <div className="text-xl sm:text-3xl font-black font-mono tabular-nums text-slate-900 mt-0.5">
+                <div className="text-xl sm:text-3xl font-bold font-mono tabular-nums text-slate-900 mt-0.5">
                   {loom.cmpx.toFixed(2)}
                 </div>
-                <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5">
-                  Warp: {loom.stopsShift.WARP} | Weft: {loom.stopsShift.FILLING}
+                <span className="text-[11px] text-slate-500 block mt-0.5">
+                  Warp: {loom.stopsShift.WARP} • Weft: {loom.stopsShift.FILLING}
                 </span>
               </div>
             </div>

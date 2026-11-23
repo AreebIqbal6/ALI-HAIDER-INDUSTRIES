@@ -115,31 +115,33 @@ export const Header: React.FC = () => {
           <nav className="hidden md:flex items-center gap-1">
             <button 
               onClick={() => { setSelectedMachineId('GLOBAL'); router.push('/'); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 pathname === '/' && selectedMachineId === 'GLOBAL' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-slate-800 text-white border border-slate-700/80 shadow-sm' 
+                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
               }`}
             >
-              <Activity size={15} /> Machine Matrix ({totalLooms})
+              <Activity size={14} className={pathname === '/' && selectedMachineId === 'GLOBAL' ? 'text-slate-200' : 'text-slate-500'} />
+              <span>Machine Matrix ({totalLooms})</span>
             </button>
             <button 
               onClick={() => router.push('/analytics')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 pathname === '/analytics' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-slate-800 text-white border border-slate-700/80 shadow-sm' 
+                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
               }`}
             >
-              <BarChart2 size={15} /> Shift Analytics &amp; OEE
+              <BarChart2 size={14} className={pathname === '/analytics' ? 'text-slate-200' : 'text-slate-500'} />
+              <span>Shift Analytics &amp; OEE</span>
             </button>
           </nav>
 
           {/* Active Loom Badge (Desktop) */}
           {selectedMachineId !== 'GLOBAL' && selectedLoom && (
             <div className="hidden lg:flex items-center gap-2 bg-slate-800/90 border border-slate-700 px-2.5 py-1 rounded-lg">
-              <span className="text-xs font-bold text-blue-400">
-                Loom #{selectedLoom.loomNumber ?? 1} ({selectedLoom.machineId})
+              <span className="text-xs font-medium text-slate-200">
+                Loom #{selectedLoom.loomNumber ?? 1} <span className="font-mono text-slate-400">({selectedLoom.machineId})</span>
               </span>
               <button 
                 onClick={() => setSelectedMachineId('GLOBAL')}
@@ -155,7 +157,7 @@ export const Header: React.FC = () => {
         <div className="hidden sm:flex items-center gap-2 md:gap-3 text-xs font-mono">
           <div className="flex items-center gap-1.5 bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700">
             <Gauge size={14} className="text-slate-400" />
-            <span className="font-bold text-white tabular-nums">
+            <span className="font-semibold text-white tabular-nums">
               {totalLooms > 0 ? currentRpm : '—'}
             </span>
             <span className="text-[10px] text-slate-400">RPM</span>
@@ -166,15 +168,15 @@ export const Header: React.FC = () => {
               totalLooms === 0
                 ? 'bg-slate-500'
                 : isStopped
-                ? 'bg-red-500 animate-pulse'
+                ? 'bg-red-500'
                 : 'bg-emerald-500'
             }`} />
-            <span className="text-[11px] font-bold text-slate-200">
+            <span className="text-[11px] font-medium text-slate-200">
               {totalLooms === 0
-                ? '0 / 0 CONNECTED'
+                ? '0 / 0 connected'
                 : selectedLoom 
-                ? (isStopped ? `${selectedLoom.stopCategory || 'STOPPED'}` : 'RUNNING') 
-                : `${runningCount} / ${totalLooms} RUNNING`}
+                ? (isStopped ? `${selectedLoom.stopCategory || 'Stopped'}` : 'Running') 
+                : `${runningCount} / ${totalLooms} running`}
             </span>
           </div>
         </div>
@@ -182,12 +184,12 @@ export const Header: React.FC = () => {
         {/* Right: Truthful Connection Status Pill + Shift Clock */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Read-Only Truthful Connection Status Pill */}
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-bold border shadow-sm ${
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-medium border ${
             systemStatus === 'CLOUD_LIVE'
-              ? 'bg-emerald-950/70 border-emerald-600/70 text-emerald-300'
+              ? 'bg-emerald-950/60 border-emerald-700/50 text-emerald-300'
               : systemStatus === 'LOCAL_LAN'
-              ? 'bg-blue-950/70 border-blue-600/70 text-blue-300'
-              : 'bg-red-950/70 border-red-600/70 text-red-300'
+              ? 'bg-slate-800/90 border-slate-700 text-slate-300'
+              : 'bg-red-950/60 border-red-700/50 text-red-300'
           }`}
           title={
             systemStatus === 'CLOUD_LIVE'
@@ -200,8 +202,8 @@ export const Header: React.FC = () => {
               systemStatus === 'CLOUD_LIVE'
                 ? 'bg-emerald-400 animate-pulse'
                 : systemStatus === 'LOCAL_LAN'
-                ? 'bg-blue-400'
-                : 'bg-red-500 animate-pulse'
+                ? 'bg-slate-400'
+                : 'bg-red-500'
             }`} />
             <span className="font-mono">
               {systemStatus === 'CLOUD_LIVE'
@@ -214,11 +216,11 @@ export const Header: React.FC = () => {
 
           {/* Shift Clock locked to Asia/Karachi */}
           <div className="flex flex-col items-end leading-tight font-mono text-slate-300 pl-1">
-            <div className="text-[11px] sm:text-xs font-bold tabular-nums text-white" suppressHydrationWarning>
+            <div className="text-[11px] sm:text-xs font-semibold tabular-nums text-white" suppressHydrationWarning>
               <span className="inline sm:hidden" suppressHydrationWarning>{karachiTimeShort.format(time)}</span>
               <span className="hidden sm:inline" suppressHydrationWarning>{karachiTimeFull.format(time)}</span>
             </div>
-            <div className="text-[9px] text-blue-400 font-bold hidden sm:block" suppressHydrationWarning>
+            <div className="text-[9px] text-slate-400 font-medium hidden sm:block" suppressHydrationWarning>
               {shiftKpis.shift.type === 'SHIFT_A' ? 'Shift A' : 'Shift B'}
             </div>
           </div>
@@ -250,28 +252,28 @@ export const Header: React.FC = () => {
           <div className="space-y-1 pt-1">
             <button 
               onClick={() => { setSelectedMachineId('GLOBAL'); router.push('/'); setMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-sm font-bold text-left transition-colors cursor-pointer ${
-                pathname === '/' && selectedMachineId === 'GLOBAL' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-200 hover:bg-slate-800'
+              className={`w-full flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-sm font-medium text-left transition-colors cursor-pointer ${
+                pathname === '/' && selectedMachineId === 'GLOBAL' ? 'bg-slate-800 text-white border border-slate-700/80 shadow-sm' : 'text-slate-300 hover:bg-slate-800/60'
               }`}
             >
-              <Activity size={18} className="text-blue-400" />
+              <Activity size={16} className="text-slate-400" />
               <span>Machine Matrix ({totalLooms})</span>
             </button>
             <button 
               onClick={() => { router.push('/analytics'); setMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-sm font-bold text-left transition-colors cursor-pointer ${
-                pathname === '/analytics' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-200 hover:bg-slate-800'
+              className={`w-full flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-sm font-medium text-left transition-colors cursor-pointer ${
+                pathname === '/analytics' ? 'bg-slate-800 text-white border border-slate-700/80 shadow-sm' : 'text-slate-300 hover:bg-slate-800/60'
               }`}
             >
-              <BarChart2 size={18} className="text-emerald-400" />
+              <BarChart2 size={16} className="text-slate-400" />
               <span>Shift Analytics &amp; OEE</span>
             </button>
             {selectedMachineId !== 'GLOBAL' && (
               <button 
                 onClick={() => { setSelectedMachineId('GLOBAL'); setMobileMenuOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-blue-400 bg-blue-950/40 border border-blue-800 text-left cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-300 bg-slate-800/60 border border-slate-700 text-left cursor-pointer"
               >
-                <ArrowLeft size={16} />
+                <ArrowLeft size={15} />
                 <span>Exit Inspection (Back to Fleet)</span>
               </button>
             )}
