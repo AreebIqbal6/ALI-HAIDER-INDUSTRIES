@@ -1,6 +1,6 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseEnabled } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { 
   LoomClientState,
@@ -168,9 +168,20 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [mapRecordToLoomState, systemStatus]);
 
-  // Primary: Connect to Supabase Realtime with fallback to Local LAN polling
+  // Primary: Connect to Supabase Realtime (if enabled) with fallback to Local LAN polling
   useEffect(() => {
     isMountedRef.current = true;
+
+    // 100% Offline Local Industrial Mode: Skip all cloud connections
+    if (!isSupabaseEnabled || !supabase) {
+      if (isMountedRef.current) setSystemStatus('LOCAL_LAN');
+      pollLocalState();
+      const pollTimer = setInterval(pollLocalState, 1500);
+      return () => {
+        isMountedRef.current = false;
+        clearInterval(pollTimer);
+      };
+    }
 
     const setupRealtimeSubscription = () => {
       try {

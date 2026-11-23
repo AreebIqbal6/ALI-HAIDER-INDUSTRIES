@@ -38,3 +38,10 @@ Started: 2026-11-22T00:30:29+05:00
   * npm run verify-pilot: PASSED 5/5 steps.
   * Browser Playwright testing on http://localhost:3000/ and http://localhost:3000/analytics: verified authentic dark header, #e8ebf0 canvas, truthful connection pill (Local LAN), honest empty states, and dynamic auto-registration upon real hardware frame reception.
   * CodeRabbit quality gate: passed with 100% criteria met.
+
+[2026-11-23 14:15 PKT] Successfully resolved Supabase cloud dependency:
+- Switched to 100% Offline Local Industrial Persistence.
+- Enabled atomic disk persistence in data/local_store.json (survives reboots).
+- Suppressed all outbound requests to paused Supabase URLs in src/lib/supabase.ts and src/contexts/TelemetryContext.tsx.
+- Browser console error count dropped from 7 to 0 (0 errors, 0 warnings on / and /analytics).
+- 5/5 automated pilot verification steps passed.

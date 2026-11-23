@@ -39,36 +39,37 @@ export async function POST(req: NextRequest) {
 
     try {
       const supabase = getServiceSupabase();
+      if (supabase) {
+        if (stopId) {
+          await supabase
+            .from('downtime_logs')
+            .update({
+              operator_reason: reasonCode,
+              acknowledged_by: operatorName || 'Floor Operator',
+              technician_notes: notes || reasonDescription
+            })
+            .eq('stop_id', stopId);
+        }
 
-      if (stopId) {
+        await supabase.from('long_stop_declarations').insert({
+          stop_id: stopId || null,
+          machine_id: machineId,
+          reason_code: reasonCode,
+          reason_description: reasonDescription,
+          declared_by: operatorName || 'Floor Operator',
+          notes: notes || null,
+          declared_at: declaredAt
+        });
+
         await supabase
-          .from('downtime_logs')
+          .from('loom_live_state')
           .update({
             operator_reason: reasonCode,
-            acknowledged_by: operatorName || 'Floor Operator',
-            technician_notes: notes || reasonDescription
+            operator_note: notes || reasonDescription,
+            declared_at: declaredAt
           })
-          .eq('stop_id', stopId);
+          .eq('machine_id', machineId);
       }
-
-      await supabase.from('long_stop_declarations').insert({
-        stop_id: stopId || null,
-        machine_id: machineId,
-        reason_code: reasonCode,
-        reason_description: reasonDescription,
-        declared_by: operatorName || 'Floor Operator',
-        notes: notes || null,
-        declared_at: declaredAt
-      });
-
-      await supabase
-        .from('loom_live_state')
-        .update({
-          operator_reason: reasonCode,
-          operator_note: notes || reasonDescription,
-          declared_at: declaredAt
-        })
-        .eq('machine_id', machineId);
     } catch (dbErr) {
       // Safe fallback when Supabase is unreachable/offline
     }

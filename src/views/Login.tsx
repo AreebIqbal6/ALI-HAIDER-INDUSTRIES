@@ -14,6 +14,12 @@ export const Login: React.FC = () => {
     setLoading(true);
     setError(null);
 
+    if (!supabase) {
+      setError('System is operating in 100% Offline Local Industrial Mode. Cloud authentication is bypassed.');
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,

@@ -39,15 +39,17 @@ export async function POST(req: NextRequest) {
     // 2. Update Supabase if available
     try {
       const supabase = getServiceSupabase();
-      const updates: Record<string, any> = {};
-      if (loomNumber !== undefined) updates.loom_number = loomNumber;
-      if (family) updates.family = family;
-      if (articleName) updates.article_name = articleName;
-      if (setRpm) updates.set_rpm = setRpm;
-      if (weftDensity) updates.weft_density_picks_per_cm = weftDensity;
+      if (supabase) {
+        const updates: Record<string, any> = {};
+        if (loomNumber !== undefined) updates.loom_number = loomNumber;
+        if (family) updates.family = family;
+        if (articleName) updates.article_name = articleName;
+        if (setRpm) updates.set_rpm = setRpm;
+        if (weftDensity) updates.weft_density_picks_per_cm = weftDensity;
 
-      if (Object.keys(updates).length > 0) {
-        await supabase.from('looms').update(updates).eq('machine_id', machineId);
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('looms').update(updates).eq('machine_id', machineId);
+        }
       }
     } catch (dbErr) {
       console.warn('Local mode: Supabase update skipped:', dbErr);

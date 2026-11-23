@@ -1,5 +1,9 @@
-// src/lib/localStore.ts: In-Memory Production Store for Edge Gateway & Zero-Mock Local LAN Mode
-// Maintains live state across Next.js API route invocations via global singleton.
+// src/lib/localStore.ts: In-Memory & On-Disk Production Store for Edge Gateway & Zero-Mock Local LAN Mode
+// Maintains live state across Next.js API route invocations via global singleton,
+// with automatic disk persistence in data/local_store.json for 100% offline industrial reliability.
+
+import fs from 'fs';
+import path from 'path';
 
 export interface StoredLoom {
   id: string;
@@ -68,16 +72,69 @@ interface LocalStoreState {
   deviceSeqMap: Map<string, number>;
 }
 
+const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_FILE = path.join(DATA_DIR, 'local_store.json');
+
+function ensureDataDir() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+  } catch {}
+}
+
+function loadFromDisk(): Partial<LocalStoreState> {
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const raw = fs.readFileSync(DATA_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      return {
+        looms: new Map(parsed.looms || []),
+        liveStates: new Map(parsed.liveStates || []),
+        counters: parsed.counters || [],
+        deviceSeqMap: new Map(parsed.deviceSeqMap || []),
+      };
+    }
+  } catch (err) {
+    console.warn('[LocalStore] Error reading local_store.json:', err);
+  }
+  return {};
+}
+
+let saveTimer: NodeJS.Timeout | null = null;
+export function persistToDisk() {
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    try {
+      ensureDataDir();
+      const payload = {
+        looms: Array.from(store.looms.entries()),
+        liveStates: Array.from(store.liveStates.entries()),
+        counters: store.counters.slice(-500),
+        deviceSeqMap: Array.from(store.deviceSeqMap.entries()),
+        savedAt: new Date().toISOString()
+      };
+      const tmpFile = `${DATA_FILE}.tmp.${Date.now()}`;
+      fs.writeFileSync(tmpFile, JSON.stringify(payload, null, 2), 'utf8');
+      fs.renameSync(tmpFile, DATA_FILE);
+    } catch (err) {
+      console.warn('[LocalStore] Error persisting local_store.json:', err);
+    }
+  }, 100);
+}
+
 // Global singleton pattern for Next.js hot-reloading / multiple route workers
 const globalStoreKey = Symbol.for('weavesync.localstore.v2');
 const globalAny = globalThis as unknown as { [globalStoreKey]?: LocalStoreState };
 
 if (!globalAny[globalStoreKey]) {
+  const loaded = loadFromDisk();
   globalAny[globalStoreKey] = {
-    looms: new Map<string, StoredLoom>(),
-    liveStates: new Map<string, StoredLiveState>(),
-    counters: [],
-    deviceSeqMap: new Map<string, number>()
+    looms: loaded.looms || new Map<string, StoredLoom>(),
+    liveStates: loaded.liveStates || new Map<string, StoredLiveState>(),
+    counters: loaded.counters || [],
+    deviceSeqMap: loaded.deviceSeqMap || new Map<string, number>()
   };
 }
 
@@ -155,6 +212,7 @@ export function autoRegisterLoom(params: {
     if (params.family) existing.family = params.family;
   }
 
+  persistToDisk();
   return existing;
 }
 
@@ -250,6 +308,7 @@ export function updateLoomTelemetry(params: {
     store.deviceSeqMap.set(params.deviceId, params.seq);
   }
 
+  persistToDisk();
   return live;
 }
 
@@ -273,6 +332,7 @@ export function configureLoom(params: {
   if (params.setRpm) loom.set_rpm = params.setRpm;
   if (params.weftDensity) loom.weft_density_picks_per_cm = params.weftDensity;
 
+  persistToDisk();
   return loom;
 }
 
@@ -293,6 +353,7 @@ export function assignStopReason(params: {
   state.updated_at = new Date().toISOString();
 
   store.liveStates.set(params.machineId, state);
+  persistToDisk();
   return true;
 }
 
@@ -389,6 +450,7 @@ export function clearTestLoom(machineIdOrDeviceId: string): boolean {
     if (mId === machineIdOrDeviceId || l.device_id === machineIdOrDeviceId) {
       store.looms.delete(mId);
       store.liveStates.delete(mId);
+      persistToDisk();
       return true;
     }
   }
@@ -403,4 +465,9 @@ export function clearAllLooms(): void {
   store.liveStates.clear();
   store.counters = [];
   store.deviceSeqMap.clear();
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      fs.unlinkSync(DATA_FILE);
+    }
+  } catch {}
 }

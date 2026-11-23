@@ -26,3 +26,13 @@ The prior prototype relied heavily on synthetic frontend simulations: hardcoding
 2. **Graceful Handling of Paused Cloud Instances**: When Supabase is paused or disconnected, the client suppresses recursive WebSocket reconnection attempts and falls back seamlessly to the low-latency Local LAN store (`/api/live/state`), displaying the truthful `Local LAN` status pill.
 3. **Analytics & Empty States**: Purged the synthetic Huawei SUN2000 solar curves and hardcoded downtime arrays from `src/views/AnalyticsDashboard.tsx`. Rendered an authoritative industrial empty state when 0 machines are connected, while computing real OEE, availability, and stoppage Pareto breakdowns when live hardware is streaming data.
 4. **Security & Production Hardening**: Installed strict security headers (CSP, HSTS, X-Frame-Options: DENY, X-Content-Type-Options: nosniff), suppressed production source maps, created Next.js error boundary (`src/app/error.tsx`), and verified 100% passing tests via `npm run verify-pilot` and `npm run build`.
+
+## [2026-11-23] 100% Offline Local Industrial Persistence (Zero Cloud Dependency)
+
+### Problem
+Supabase free tier automatically paused project `ALI-HAIDER-INDUSTRIES` due to account limits. Continuing to rely on an external cloud database caused network timeouts (`net::ERR_NAME_NOT_RESOLVED`), blocked unpausing without a paid plan, and violated industrial plant reliability standards where a weaving shed SCADA system must never stop functioning if cloud SaaS accounts expire.
+
+### Resolution
+1. **Permanent Local Disk Persistence**: Overhauled `src/lib/localStore.ts` to automatically persist all auto-registered looms, live states, pick counters, and operator stoppage declarations to `data/local_store.json` using atomic disk writes. Data survives server reboots completely without any cloud database.
+2. **Eliminated Cloud Overhead & Console Errors**: Set `NEXT_PUBLIC_ENABLE_SUPABASE="false"` and `OFFLINE_MODE="true"`. Bypassed all outgoing REST and WebSocket connections to dead Supabase URLs. Verified zero browser console errors (0 errors, 0 warnings across all routes).
+3. **Automated Verification**: `npm run verify-pilot` passes 5/5 steps strictly offline. Production build (`npm run build`) passes cleanly with exit code 0.

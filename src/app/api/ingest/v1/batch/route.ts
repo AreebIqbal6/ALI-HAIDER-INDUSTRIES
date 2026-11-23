@@ -231,18 +231,20 @@ export async function POST(req: NextRequest) {
         timestamp: hItem.ts || now
       });
 
-      // Best-effort write to Supabase
+      // Best-effort write to Supabase (if enabled)
       try {
         const supabase = getServiceSupabase();
-        await supabase.from('loom_live_state').upsert({
-          machine_id: machineId,
-          device_id: deviceId,
-          state: isRunning ? 'RUNNING' : 'STOPPED',
-          stop_category: detectedCategory,
-          rpm,
-          last_ts: hItem.ts || now,
-          updated_at: now
-        }, { onConflict: 'machine_id' });
+        if (supabase) {
+          await supabase.from('loom_live_state').upsert({
+            machine_id: machineId,
+            device_id: deviceId,
+            state: isRunning ? 'RUNNING' : 'STOPPED',
+            stop_category: detectedCategory,
+            rpm,
+            last_ts: hItem.ts || now,
+            updated_at: now
+          }, { onConflict: 'machine_id' });
+        }
       } catch (dbErr) {
         // Safe in local LAN mode when Supabase is offline
       }
@@ -341,7 +343,9 @@ export async function DELETE(req: NextRequest) {
     clearAllLooms();
     try {
       const supabase = getServiceSupabase();
-      await supabase.from('loom_live_state').delete().neq('machine_id', '');
+      if (supabase) {
+        await supabase.from('loom_live_state').delete().neq('machine_id', '');
+      }
     } catch {}
     return NextResponse.json({ success: true, cleared: 'ALL' });
   }
@@ -350,7 +354,9 @@ export async function DELETE(req: NextRequest) {
     clearTestLoom(targetId);
     try {
       const supabase = getServiceSupabase();
-      await supabase.from('loom_live_state').delete().eq('machine_id', targetId);
+      if (supabase) {
+        await supabase.from('loom_live_state').delete().eq('machine_id', targetId);
+      }
     } catch {}
     return NextResponse.json({ success: true, cleared: targetId });
   }
