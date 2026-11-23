@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
     const { machineId, loomNumber, family, articleName, setRpm, weftDensity } = result.data;
 
     // 1. Update in localStore
-    const updatedLocal = configureLoom(machineId, {
+    const updatedLocal = configureLoom({
+      machineId,
       loomNumber,
       family,
       articleName,

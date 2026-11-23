@@ -7,6 +7,11 @@
  */
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
+const INGEST_KEY = process.env.INGEST_API_KEY || 'weavesync-industrial-secret-2026';
+const AUTH_HEADERS = {
+  'Content-Type': 'application/json',
+  'x-weavesync-key': INGEST_KEY
+};
 
 async function runStep(name, fn) {
   process.stdout.write(`[TEST] ${name}... `);
@@ -56,7 +61,7 @@ async function verifySuite() {
 
     const res = await fetch(`${BASE_URL}/api/ingest/v1/batch`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: AUTH_HEADERS,
       body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error(`HTTP status ${res.status}`);
@@ -76,7 +81,7 @@ async function verifySuite() {
     };
     const warpRes = await fetch(`${BASE_URL}/api/ingest/v1/batch`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: AUTH_HEADERS,
       body: JSON.stringify(warpPayload)
     });
     if (!warpRes.ok) throw new Error(`Warp stop ingest HTTP ${warpRes.status}`);
@@ -97,7 +102,7 @@ async function verifySuite() {
     };
     const fillRes = await fetch(`${BASE_URL}/api/ingest/v1/batch`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: AUTH_HEADERS,
       body: JSON.stringify(fillingPriorityPayload)
     });
     if (!fillRes.ok) throw new Error(`Filling priority HTTP ${fillRes.status}`);
@@ -121,7 +126,7 @@ async function verifySuite() {
     };
     const res = await fetch(`${BASE_URL}/api/ingest/v1/batch`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: AUTH_HEADERS,
       body: JSON.stringify(runPayload)
     });
     if (!res.ok) throw new Error(`HTTP status ${res.status}`);

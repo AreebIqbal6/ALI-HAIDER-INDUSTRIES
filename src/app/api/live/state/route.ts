@@ -6,9 +6,5 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const snapshot = getLocalStoreSnapshot();
-  return NextResponse.json({
-    success: true,
-    mode: 'LOCAL_LAN',
-    ...snapshot
-  });
+  return NextResponse.json(snapshot);
 }

@@ -1,68 +1,75 @@
 {
-  "name": "WeaveSync SCADA Zero-Mock Industrial Overhaul",
-  "version": "2.0.0",
-  "description": "Strict production-grade overhaul of WeaveSync SCADA for Ali Haider Industries: zero mock data, true hardware auto-registration, truthful dual-mode connectivity, industrial Shadcn UI, and hardened WT32-ETH01 firmware.",
+  "name": "WeaveSync SCADA Zero-Mock Industrial Overhaul (Strict UI Freeze)",
+  "version": "2.1.0",
+  "description": "Production-grade backend, firmware, and anti-slop overhaul for Ali Haider Industries with STRICT UI FREEZE: preserving dark header, #e8ebf0 canvas, cards, typography, and layout, while eradicating all mock data, fake controls, and vibecoded giveaways.",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Eliminate All Mock Data & Implement True Hardware Auto-Registration",
+      "title": "Backend Ingestion, Dual Transport & Auto-Registration",
       "acceptanceCriteria": [
-        "Delete createInitialLoomState, hardcoded 36-loom arrays, fake climate, solar chart, fake Pareto, and fake FRAM numbers",
-        "Move hardcoded 36-loom SQL seed from migrations to docs/fleet-reference.md",
-        "Auto-register looms strictly on valid authenticated packet at POST /api/ingest/v1/batch with MAC deviceId",
-        "Track connectivity purely by last_heartbeat_at: ONLINE (<15s), STALE (15-60s), OFFLINE (>60s with RPM 0)",
-        "Display authoritative 'No Looms Connected' empty state with listening indicator and endpoint URL when 0 looms connected",
-        "Allow operators to configure/label auto-registered devices (Loom #, Model, Article, Set RPM, Weft Density)"
+        "Zod validation on /api/ingest/v1/batch, /api/operator/declare-stop, and /api/operator/configure-loom",
+        "Constant-time x-weavesync-key comparison with crypto.timingSafeEqual",
+        "Replay attack prevention with msgId deduplication and monotonic seq checking",
+        "Dual transport: persist to in-memory local store and Supabase (with timeout guard), serving /api/live/state",
+        "Hardware auto-registration upon valid authenticated packet with MAC deviceId",
+        "Real connectivity tracking: ONLINE (<15s), STALE (15-60s), OFFLINE (>60s with RPM 0)",
+        "Rate limiting on ingestion and operator endpoints"
       ],
       "passes": true
     },
     {
       "id": "US-002",
-      "title": "Truthful Dual-Mode Data Transport (Cloud vs. Local LAN)",
+      "title": "Harden WT32-ETH01 Firmware",
       "acceptanceCriteria": [
-        "Remove fake LOCAL/CLOUD toggle from header",
-        "Support primary Supabase Realtime and automatic fallback to local in-memory/SQLite store via GET /api/live/state",
-        "Display single read-only status pill in header: Cloud Live (green), Local LAN Mode (blue), Disconnected (red)"
-      ],
-      "passes": true
-    },
-    {
-      "id": "US-003",
-      "title": "Industrial UI/UX Redesign with Shadcn UI (Zero Slop)",
-      "acceptanceCriteria": [
-        "High-contrast light industrial canvas (bg-zinc-50), pure white flat cards (bg-white border border-zinc-200), dark typography",
-        "Zero emojis, zero duplicate icons, zero internal document tags (Section 11, CEO pitch), zero raw protocol badges (LDL+BICOM_ETH)",
-        "Top KPI strip with 4 clean cards (Fleet Efficiency, Looms Running, Active Stoppages, Shift Output)",
-        "Connected machine cards with Name, Model, Status, Efficiency %, RPM, Meters, Stop stopwatch, and 'Log Stop Reason' dialog with 7 ISO codes",
-        "Machine detail page read-only with Hardware Diagnostics tab showing only real pin telemetry",
-        "Shift Analytics page with Huawei solar chart deleted, real DB metrics for PKT shifts, clean empty state when no data",
-        "All clocks locked to Asia/Karachi without hydration warnings",
-        "Add custom src/app/not-found.tsx, loading skeletons, and verify productionBrowserSourceMaps is false"
-      ],
-      "passes": true
-    },
-    {
-      "id": "US-004",
-      "title": "Harden ESP32 Firmware (wt32_eth01_pilot.ino)",
-      "acceptanceCriteria": [
-        "Start totalPicks at 0 and send incremental picksDelta with monotonic seq",
-        "Read real Ethernet MAC ETH.macAddress() as deviceId",
-        "Strict safe pins: GPIO 4 (STRT), 32 (PP), 33 (WD), 14 (FD), never touching GPIO 0, 2, 12, 15",
-        "Hardware PCNT without double-counting ISR",
-        "Explicit #ifndef PHY macros before #include <ETH.h>",
+        "totalPicks initialized to 0 on boot, transmitting incremental picksDelta per interval with monotonic seq",
+        "Read real hardware MAC ETH.macAddress() as deviceId in all payloads",
+        "Strict safe non-strapping pins: GPIO 4 (STRT), 32 (PP), 33 (WD), 14 (FD), never touching GPIO 0, 2, 12, 15",
+        "Clean hardware PCNT counter on GPIO 32 without double-counting ISR conflict",
+        "#ifndef PHY macros before #include <ETH.h>",
         "5-second heartbeat + immediate edge state push with x-weavesync-key"
       ],
       "passes": true
     },
     {
-      "id": "US-005",
-      "title": "Security, Validation, Edge Gateway & External Verification",
+      "id": "US-003",
+      "title": "Zero-Mock Frontend & Strict UI Freeze (Preserve Visual Look)",
       "acceptanceCriteria": [
-        "Zod validation for /api/ingest/v1/batch and /api/operator/declare-stop with 400 on malformed payloads",
-        "Enforce x-weavesync-key header matching INGEST_API_KEY",
-        "npm run build passes with 0 errors",
-        "cd edge-gateway && npx tsc --noEmit passes with 0 errors",
-        "scripts/verify-pilot-ready.mjs tests pass end-to-end (empty state, auto-registration, stop logging, offline detection, cleanup)"
+        "Keep exact dark header (bg-[#1e293b]), #e8ebf0 canvas, card styling, typography, and component structure strictly as-is",
+        "Delete createInitialLoomState and 36-loom hardcoded array; looms state starts strictly empty ({}) until hardware connects",
+        "Honest empty state when 0 looms connected: 'No Looms Connected' with live endpoint URL and pulsing listening indicator",
+        "Replace fake LOCAL/CLOUD toggle with single read-only status pill (Cloud Live, Local LAN, Disconnected)",
+        "Remove fake Pilot Controls drawer and fake + Commission Loom modal",
+        "Top KPI strip with 4 clean cards (Fleet Efficiency, Looms Running, Active Stoppages, Shift Output), delete fake Shed Climate",
+        "Machine cards show clean real metrics with live stop stopwatch and Log Stop Reason dialog (7 codes)",
+        "Machine detail strictly read-only; Hardware Pin Inspector shows only real pin telemetry ('No pin telemetry reported' if none)",
+        "Delete fake Huawei SUN2000 Solar chart; honest empty state on /analytics when no shift records exist"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-004",
+      "title": "Anti-Slop & Web Quality Compliance",
+      "acceptanceCriteria": [
+        "Zero emojis anywhere in the UI (replace with Lucide icons)",
+        "Zero duplicate icons (+ +, ⚠️ ⚠️)",
+        "Zero developer jargon ('Section 11 Verified Formulas', 'CEO pitch', 'Edge Gateway Bus', 'Mock Bus', 'PoE-Lite', 'LDL+BICOM_ETH')",
+        "Global fleet efficiency = true (sumRunMs / sumObservedMs) * 100 across connected looms only (shows — when 0 connected)",
+        "Clocks and shifts locked strictly to Asia/Karachi (Intl.DateTimeFormat) with zero hydration warnings",
+        "Custom 404 page (src/app/not-found.tsx) and error boundary (src/app/error.tsx)",
+        "Strict security headers in next.config.ts (CSP, X-Content-Type-Options, X-Frame-Options, CORS, productionBrowserSourceMaps: false)",
+        "Zero dead links (href='#') and zero console errors"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-005",
+      "title": "Verification & CodeRabbit Review",
+      "acceptanceCriteria": [
+        "npm run build passes with exit code 0",
+        "cd edge-gateway && npx tsc --noEmit passes with exit code 0",
+        "npm run verify-pilot passes end-to-end with real test packets",
+        "Browser testing via Playwright/Chrome DevTools MCP verifies empty state and zero console errors",
+        "Multi-lens CodeRabbit review completed and all criteria passing"
       ],
       "passes": true
     }

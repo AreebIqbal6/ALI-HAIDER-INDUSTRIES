@@ -4,7 +4,6 @@ import { useTelemetry } from '../contexts/TelemetryContext';
 import { 
   ArrowLeft, 
   Activity, 
-  Cloud, 
   List, 
   Cpu, 
   Gauge, 
@@ -14,20 +13,16 @@ import {
   Tag,
   Zap
 } from 'lucide-react';
-import { SensorDashboard } from '../components/omniplus/SensorDashboard';
-import { ClimateMonitoring } from '../components/omniplus/ClimateMonitoring';
-import { ActionCenter } from '../components/omniplus/ActionCenter';
 import { HardwarePinInspector } from '../components/omniplus/HardwarePinInspector';
 import { OPERATOR_REASON_LABELS } from '../types';
 
-type Tab = 'subsystems' | 'hardware' | 'sensors' | 'climate' | 'logs';
+type Tab = 'subsystems' | 'hardware' | 'logs';
 
 export const LoomDashboard: React.FC = () => {
   const { 
     looms, 
     selectedMachineId, 
     setSelectedMachineId, 
-    acknowledgeStop, 
     shiftKpis 
   } = useTelemetry();
 
@@ -43,7 +38,7 @@ export const LoomDashboard: React.FC = () => {
           onClick={() => setSelectedMachineId('GLOBAL')}
           className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer shadow-sm active:scale-95"
         >
-          Return to 36-Machine Matrix
+          Return to Fleet Matrix
         </button>
       </div>
     );
@@ -57,7 +52,7 @@ export const LoomDashboard: React.FC = () => {
       case 'WARP': return 'Warp Drop Wire Contact (TSF Load-Cell Break)';
       case 'FILLING': return 'Weft Optical Detector FD1 (Arrival Failure)';
       case 'SELVEDGE': return 'ELSY Leno Selvedge Break';
-      case 'OTHER': return 'Other Mechanical / Air Stoppage';
+      case 'OTHER': return 'Other Mechanical / Stop';
       default: return 'Machine Operating Normally';
     }
   };
@@ -79,7 +74,7 @@ export const LoomDashboard: React.FC = () => {
 
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-none">
-              Loom #{loom.loomNumber}
+              Loom #{loom.loomNumber ?? 1}
             </h1>
             <span className="text-[11px] sm:text-xs font-mono font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
               {loom.machineId}
@@ -88,12 +83,12 @@ export const LoomDashboard: React.FC = () => {
               {loom.family}
             </span>
             <span className="text-[9px] sm:text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-              {loom.sources.join('+')}
+              {loom.sources.join(', ')}
             </span>
           </div>
         </div>
 
-        {/* Live Status Pill & Safe Acknowledge Action */}
+        {/* Live Status Pill (Strictly Read-Only) */}
         <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
           <div className={`px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-extrabold flex items-center gap-1.5 ${
             isRunning 
@@ -104,22 +99,13 @@ export const LoomDashboard: React.FC = () => {
             <span>{isRunning ? 'RUNNING' : `STOPPED: ${loom.stopCategory || 'UNKNOWN'}`}</span>
           </div>
 
-          {!isRunning && (
-            <button
-              onClick={() => acknowledgeStop(loom.machineId)}
-              className="px-2.5 py-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-lg text-[11px] sm:text-xs font-bold shadow-sm transition-colors cursor-pointer"
-            >
-              Acknowledge
-            </button>
-          )}
-
-          <div className="text-[10px] font-mono text-slate-400 hidden lg:block">
-            {loom.setRpm} RPM Set • {loom.weftDensityPicksPerCm} p/cm • {loom.ipAddress}
+          <div className="text-[10px] font-mono text-slate-500 hidden lg:block">
+            {loom.setRpm} RPM Set • {loom.weftDensityPicksPerCm} p/cm {loom.ipAddress ? `• ${loom.ipAddress}` : ''}
           </div>
         </div>
       </div>
 
-      {/* Navigation Sub-Tabs (Horizontal Swipe on Phone) */}
+      {/* Navigation Sub-Tabs */}
       <div className="bg-white px-2 sm:px-4 border-b border-slate-200 flex gap-1 sm:gap-2 overflow-x-auto scrollbar-none py-1">
         <button
           onClick={() => setActiveTab('subsystems')}
@@ -130,7 +116,7 @@ export const LoomDashboard: React.FC = () => {
           }`}
         >
           <Cpu size={15} />
-          <span>Subsystems</span>
+          <span>Operational Overview</span>
         </button>
         <button
           onClick={() => setActiveTab('hardware')}
@@ -141,29 +127,7 @@ export const LoomDashboard: React.FC = () => {
           }`}
         >
           <Zap size={15} className={activeTab === 'hardware' ? 'text-white' : 'text-amber-600'} />
-          <span>XP_CBMP_P9 Pin Inspector</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('sensors')}
-          className={`flex items-center gap-1.5 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
-            activeTab === 'sensors'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Activity size={15} />
-          <span>Sensors & Dynamics</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('climate')}
-          className={`flex items-center gap-1.5 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
-            activeTab === 'climate'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Cloud size={15} />
-          <span>Shed Climate</span>
+          <span>Hardware Diagnostics</span>
         </button>
         <button
           onClick={() => setActiveTab('logs')}
@@ -174,7 +138,7 @@ export const LoomDashboard: React.FC = () => {
           }`}
         >
           <List size={15} />
-          <span>Logbook & Dispatch</span>
+          <span>Shift Stoppage Log</span>
         </button>
       </div>
 
@@ -182,7 +146,7 @@ export const LoomDashboard: React.FC = () => {
       <div className="flex-1 overflow-y-auto overscroll-y-contain p-2.5 sm:p-5">
         {activeTab === 'subsystems' && (
           <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto">
-            {/* Stoppage Banner with Long Stop Declaration info */}
+            {/* Stoppage Banner */}
             {isStopped && (
               <div className="p-3 sm:p-4 bg-red-100/90 border border-red-300 rounded-xl sm:rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-sm">
                 <div className="flex items-start gap-2.5">
@@ -211,7 +175,7 @@ export const LoomDashboard: React.FC = () => {
               </div>
             )}
 
-            {/* Quick KPI Overview (Section 11 Verified Formulas) - 2x2 on Mobile */}
+            {/* Quick KPI Overview */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
               <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
                 <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
@@ -262,166 +226,8 @@ export const LoomDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Live XP_CBMP_P9 Optocoupler Pin Inspector */}
+            {/* Hardware Pin Diagnostics */}
             <HardwarePinInspector loom={loom} />
-
-            {/* Subsystem Hardware Diagnostics Matrix */}
-            <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3.5 sm:p-5 shadow-sm">
-              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
-                <Cpu size={16} className="text-blue-600" />
-                <span>Picanol Subsystem Diagnostics</span>
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3.5">
-                {/* Sumo Motor */}
-                <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-700">Sumo Main Motor</span>
-                    <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
-                      <CheckCircle2 size={11} /> {loom.subsystems.sumoMotorStatus}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">Direct-drive switched reluctance drive with dynamic brake.</p>
-                </div>
-
-                {/* ELO Electronic Let-Off */}
-                <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-700">ELO Warp Tension</span>
-                    <span className="font-mono font-bold text-slate-900 tabular-nums text-xs sm:text-sm">
-                      {loom.warpTensionKn.toFixed(2)} kN
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">TSF load-cell feedback. Target range: 1.70 - 2.20 kN.</p>
-                </div>
-
-                {/* Air-Jet Main Line Pressure */}
-                <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-700">Air-Jet Nozzle Line</span>
-                    <span className={`font-mono font-bold tabular-nums text-xs sm:text-sm ${
-                      loom.airPressureBar < 6.5 ? 'text-red-600 font-black' : 'text-slate-900'
-                    }`}>
-                      {loom.airPressureBar.toFixed(2)} Bar
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">Supply line for insertion nozzles (Critical min: 6.5 Bar).</p>
-                </div>
-
-                {/* Optical Weft Detectors FD1 / FD2 */}
-                <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-700">Weft Sensor FD1 (Arrival)</span>
-                    <span className={`inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded ${
-                      loom.subsystems.fd1Detector === 'OK' 
-                        ? 'text-emerald-700 bg-emerald-100' 
-                        : 'text-red-700 bg-red-100'
-                    }`}>
-                      <CheckCircle2 size={11} />
-                      {loom.subsystems.fd1Detector}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">Photoelectric eye checking pick arrival at right selvedge.</p>
-                </div>
-
-                <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-700">Weft Sensor FD2 (Clamping)</span>
-                    <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
-                      <CheckCircle2 size={11} /> {loom.subsystems.fd2Detector}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">Secondary optical sensor detecting broken or loose pick tails.</p>
-                </div>
-
-                {/* Relay Nozzle Buffer Tanks */}
-                <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/90">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-700">Relay Buffer Tanks</span>
-                    <span className="font-mono font-bold text-slate-900 tabular-nums text-xs sm:text-sm">
-                      {loom.subsystems.leftRelayBar} / {loom.subsystems.rightRelayBar} Bar
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">Intermediate air buffer tanks powering relay nozzle valves.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Current Shift Downtime Logs */}
-            <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3.5 sm:p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <Clock size={16} className="text-slate-500" />
-                  <span>Shift Downtime Log ({loom.machineId})</span>
-                </h3>
-                <span className="text-[10px] font-mono text-slate-400">{shiftKpis.shift.name}</span>
-              </div>
-
-              <div className="overflow-x-auto scrollbar-none -mx-3.5 sm:mx-0 px-3.5 sm:px-0">
-                <table className="w-full text-left text-xs min-w-[500px]">
-                  <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[9px] border-b border-slate-200">
-                    <tr>
-                      <th className="py-2 px-2.5">Time</th>
-                      <th className="py-2 px-2.5">Category</th>
-                      <th className="py-2 px-2.5">Duration</th>
-                      <th className="py-2 px-2.5">Reason Code</th>
-                      <th className="py-2 px-2.5">Action Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
-                    {/* Active Stoppage Row (if currently stopped) */}
-                    {isStopped && (
-                      <tr className="bg-red-50/60 font-semibold">
-                        <td className="py-2.5 px-2.5 font-mono text-red-700">
-                          {new Date(loom.since).toLocaleTimeString()}
-                        </td>
-                        <td className="py-2.5 px-2.5 font-bold text-red-600">
-                          {loom.stopCategory || 'WARP'} (ACTIVE)
-                        </td>
-                        <td className="py-2.5 px-2.5 font-mono text-red-700 font-bold">
-                          {Math.floor((Date.now() - new Date(loom.since).getTime()) / 60000)}m {Math.floor(((Date.now() - new Date(loom.since).getTime()) % 60000) / 1000)}s
-                        </td>
-                        <td className="py-2.5 px-2.5 font-mono text-slate-800">
-                          {loom.operatorReasonCode ? `[${loom.operatorReasonCode}] ${OPERATOR_REASON_LABELS[loom.operatorReasonCode]}` : <span className="text-amber-600 font-bold">Pending (&gt;5m)</span>}
-                        </td>
-                        <td className="py-2.5 px-2.5 text-red-700 font-bold">
-                          {loom.operatorReasonCode ? 'Declared by Floor' : 'Technician Inspecting'}
-                        </td>
-                      </tr>
-                    )}
-
-                    {/* Historical Shift Stoppages for this machine */}
-                    {(loom.stopsShift.WARP > (isStopped && loom.stopCategory === 'WARP' ? 1 : 0)) && (
-                      <tr>
-                        <td className="py-2.5 px-2.5 font-mono text-slate-600">11:45:10</td>
-                        <td className="py-2.5 px-2.5 font-bold text-red-600">WARP (Drop Wire)</td>
-                        <td className="py-2.5 px-2.5 font-mono">01m 24s</td>
-                        <td className="py-2.5 px-2.5 font-mono text-slate-700">[KNT] Knotting</td>
-                        <td className="py-2.5 px-2.5 text-emerald-700 font-semibold">Tied by Weaver</td>
-                      </tr>
-                    )}
-
-                    {(loom.stopsShift.FILLING > (isStopped && loom.stopCategory === 'FILLING' ? 1 : 0)) && (
-                      <tr>
-                        <td className="py-2.5 px-2.5 font-mono text-slate-600">09:30:22</td>
-                        <td className="py-2.5 px-2.5 font-bold text-amber-600">FILLING (Weft FD1)</td>
-                        <td className="py-2.5 px-2.5 font-mono">00m 48s</td>
-                        <td className="py-2.5 px-2.5 font-mono text-slate-500">-</td>
-                        <td className="py-2.5 px-2.5 text-slate-600">Prewinder Cleared</td>
-                      </tr>
-                    )}
-
-                    {!isStopped && loom.stopsShift.WARP === 0 && loom.stopsShift.FILLING === 0 && loom.stopsShift.SELVEDGE === 0 && (
-                      <tr>
-                        <td colSpan={5} className="py-4 text-center text-slate-500 font-medium text-xs">
-                          ✓ Machine running with continuous production during active shift ({shiftKpis.shift.name}).
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
           </div>
         )}
 
@@ -430,9 +236,59 @@ export const LoomDashboard: React.FC = () => {
             <HardwarePinInspector loom={loom} />
           </div>
         )}
-        {activeTab === 'sensors' && <SensorDashboard machineId={loom.machineId} />}
-        {activeTab === 'climate' && <ClimateMonitoring />}
-        {activeTab === 'logs' && <ActionCenter machineId={loom.machineId} loomNumber={loom.loomNumber} />}
+
+        {activeTab === 'logs' && (
+          <div className="max-w-5xl mx-auto bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3.5 sm:p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <Clock size={16} className="text-slate-500" />
+                <span>Shift Stoppage Log ({loom.machineId})</span>
+              </h3>
+              <span className="text-[10px] font-mono text-slate-400">{shiftKpis.shift.name}</span>
+            </div>
+
+            <div className="overflow-x-auto scrollbar-none -mx-3.5 sm:mx-0 px-3.5 sm:px-0">
+              <table className="w-full text-left text-xs min-w-[500px]">
+                <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[9px] border-b border-slate-200">
+                  <tr>
+                    <th className="py-2 px-2.5">Time</th>
+                    <th className="py-2 px-2.5">Category</th>
+                    <th className="py-2 px-2.5">Duration</th>
+                    <th className="py-2 px-2.5">Reason Code</th>
+                    <th className="py-2 px-2.5">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {isStopped ? (
+                    <tr className="bg-red-50/60 font-semibold">
+                      <td className="py-2.5 px-2.5 font-mono text-red-700">
+                        {new Date(loom.since).toLocaleTimeString()}
+                      </td>
+                      <td className="py-2.5 px-2.5 font-bold text-red-600">
+                        {loom.stopCategory || 'WARP'} (ACTIVE)
+                      </td>
+                      <td className="py-2.5 px-2.5 font-mono text-red-700 font-bold">
+                        {Math.floor((Date.now() - new Date(loom.since).getTime()) / 60000)}m {Math.floor(((Date.now() - new Date(loom.since).getTime()) % 60000) / 1000)}s
+                      </td>
+                      <td className="py-2.5 px-2.5 font-mono text-slate-800">
+                        {loom.operatorReasonCode ? `[${loom.operatorReasonCode}] ${OPERATOR_REASON_LABELS[loom.operatorReasonCode]}` : <span className="text-amber-600 font-bold">Pending</span>}
+                      </td>
+                      <td className="py-2.5 px-2.5 text-red-700 font-bold">
+                        Active Stoppage
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="py-4 text-center text-slate-500 font-medium text-xs">
+                        Machine running with continuous production during active shift ({shiftKpis.shift.name}).
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

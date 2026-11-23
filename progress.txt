@@ -9,3 +9,32 @@ Started: 2026-11-22T00:30:29+05:00
 [2026-11-22 00:49:25] Completed Milestone 5: Shadcn UI rebuild complete. Cohesive light industrial canvas (bg-zinc-50), pure flat white cards, single truthful header status pill, 4-KPI strip without fake climate, authoritative empty state for 0 looms, stop reason modal with 7 ISO codes, read-only machine detail with real Hardware Diagnostics tab, solar chart deleted from /analytics, custom 404 page, and productionBrowserSourceMaps: false.
 [2026-11-22 00:51:15] Completed Milestone 6: Hardened WT32-ETH01 firmware. Starts totalPicks at 0, reads real MAC via ETH.macAddress(), strict safe pins (4, 32, 33, 14), 1:1 hardware PCNT without double-counting, #ifndef PHY macros, 5s periodic heartbeat + immediate edge push with x-weavesync-key header.
 [2026-11-22 00:56:00] Completed Milestone 7: Standalone external verification suite (scripts/verify-pilot-ready.mjs) passed 6/6 tests. edge-gateway TypeScript passed with 0 errors. Root Next.js production build (npm run build) passed with 0 errors. All 5 user stories in prd.json marked as passed: true.
+
+[2026-11-23 13:16 PKT] Initiated Strict UI Freeze Zero-Mock Overhaul.
+- Scoped requirements: preserve authentic dark header (bg-[#1e293b]), #e8ebf0 canvas, cards, and typography.
+- Established prd.json with 5 user stories (US-001 to US-005).
+- Moving to Milestone 1: Backend Ingestion, Dual Transport & Auto-Registration.
+
+[2026-11-23 13:19 PKT] Completed Milestone 2: Backend Ingestion, Dual Transport & Auto-Registration.
+- Hardened localStore.ts: eradicated initial mock looms; store starts strictly with 0 looms.
+- Hardened /api/ingest/v1/batch with Zod validation, constant-time x-weavesync-key comparison, rate limiting, and replay prevention.
+- Hardened /api/operator/declare-stop and /api/operator/configure-loom with Zod and safe Supabase timeouts.
+
+[2026-11-23 13:20 PKT] Verified Milestone 3: Harden ESP32 Firmware.
+- Confirmed totalPicks starts at 0, no synthetic offsets.
+- ETH.macAddress() used as hardware identity deviceId.
+- Safe pins verified (GPIO 4, 32, 33, 14); GPIO 0, 2, 12, 15 untouched.
+- Clean PCNT hardware counter with 200 APB cycle glitch filter.
+- 5s heartbeat + immediate state push with x-weavesync-key.
+
+[2026-11-23 13:42 PKT] Completed Milestones 4, 5, & Verification:
+- AnalyticsDashboard.tsx overhauled: removed fake Huawei SUN2000 solar chart and fake downtime Pareto fallbacks; honest empty state when 0 looms connected; OEE dial and Pareto chart calculated strictly from connected machines and real shift stoppages; live machine telemetry breakdown table added.
+- Dead mock components purged: deleted unused ActionCenter, ClimateMonitoring, SensorDashboard, AmbientSensorWidget, and useFactoryTelemetry.
+- Security fortress headers applied in next.config.ts (CSP, HSTS, X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy, Permissions-Policy).
+- Error boundaries installed: src/app/error.tsx and src/app/not-found.tsx.
+- Verification Suite:
+  * npm run build: PASSED (exit code 0, all 8 routes generated cleanly).
+  * edge-gateway npx tsc --noEmit: PASSED (exit code 0).
+  * npm run verify-pilot: PASSED 5/5 steps.
+  * Browser Playwright testing on http://localhost:3000/ and http://localhost:3000/analytics: verified authentic dark header, #e8ebf0 canvas, truthful connection pill (Local LAN), honest empty states, and dynamic auto-registration upon real hardware frame reception.
+  * CodeRabbit quality gate: passed with 100% criteria met.
