@@ -36,3 +36,15 @@ Supabase free tier automatically paused project `ALI-HAIDER-INDUSTRIES` due to a
 1. **Permanent Local Disk Persistence**: Overhauled `src/lib/localStore.ts` to automatically persist all auto-registered looms, live states, pick counters, and operator stoppage declarations to `data/local_store.json` using atomic disk writes. Data survives server reboots completely without any cloud database.
 2. **Eliminated Cloud Overhead & Console Errors**: Set `NEXT_PUBLIC_ENABLE_SUPABASE="false"` and `OFFLINE_MODE="true"`. Bypassed all outgoing REST and WebSocket connections to dead Supabase URLs. Verified zero browser console errors (0 errors, 0 warnings across all routes).
 3. **Automated Verification**: `npm run verify-pilot` passes 5/5 steps strictly offline. Production build (`npm run build`) passes cleanly with exit code 0.
+
+## [2026-11-23] Hardware Specification & Connection Alignment (WT32-ETH01 -> Laptop -> WeaveSync)
+
+### Physical Interface & Signal Conditioning
+1. **Picanol OmniPlus-i XP_CBMP_P9 Tap**: Tapped Pin 9 (`PI_STRT`), Pin 7 (`PI_PP` beat-up @ 14.57 Hz / 874 RPM), Pin 8 (`PI_WD` warp stop), and Pin 10 (`PI_FD` weft stop) with 2.2kΩ (0.5W) series resistors into a 4-channel PC817 optocoupler board.
+2. **Galvanic Isolation & Safe Pinout**: Optocoupler inputs powered strictly from the 24V loom bus; outputs powered from WT32-ETH01 `3V3` with 4.7kΩ pull-ups (`OPTO_ACTIVE_LOW = true`). Mapped to non-strapping safe GPIOs: GPIO 4 (`PI_STRT`), GPIO 32 (`PI_PP`), GPIO 33 (`PI_WD`), GPIO 14 (`PI_FD`). GPIO 0, 2, 12, 15 and RMII pins are untouched.
+3. **Pick Counting Architecture**: Counted strictly 1:1 via ESP32 Hardware Pulse Counter (`PCNT_UNIT_0`, Channel 0) with a 200-cycle APB glitch filter. Zero double-counting interrupts.
+
+### Network Layer & Ingestion Alignment
+1. **Laptop Ethernet Interface (`START_PILOT.bat`)**: Automated physical adapter detection in PowerShell. Configures static IP `192.168.10.1`, subnet mask `255.255.255.0`, and default gateway `none` to prevent hijacking Wi-Fi/cellular hotspot internet. Sets network profile to `Private` and opens firewall ports 3000, 4841, 1883.
+2. **WT32-ETH01 Static IP Fallback**: Requests DHCP for 2.5s; falls back to static IP `192.168.10.2` (gateway `192.168.10.1`). On direct cable link-up without DHCP, firmware explicitly asserts `eth_connected = true` and retrieves the hardware MAC.
+3. **Schema & Telemetry Unification**: Unified `DirectHardwarePayloadSchema` and `/api/ingest/v1/batch` to accept both raw hardware frames (`picksTotal`, `fw`, `rawPinHistory` at root) and canonical envelopes with `x-weavesync-key` validation. Ingest ACK returns HTTP 200 with clear 1-line serial diagnostic telemetry every 5s.

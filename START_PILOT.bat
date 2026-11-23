@@ -29,12 +29,7 @@ if "%NODE_VER%"=="" (
 
 :: 3. Configure Ethernet Static IP without default gateway (Prevent dropping Wi-Fi)
 echo [STEP 1/4] Configuring Ethernet Adapter (192.168.10.1 / 255.255.255.0 - NO GATEWAY)...
-netsh interface ip set address name="Ethernet" static 192.168.10.1 255.255.255.0 none
-if %errorlevel% neq 0 (
-    echo [WARN] Could not set interface "Ethernet". Trying "Ethernet 2"...
-    netsh interface ip set address name="Ethernet 2" static 192.168.10.1 255.255.255.0 none
-)
-powershell -Command "Get-NetConnectionProfile -InterfaceAlias 'Ethernet*' | Set-NetConnectionProfile -NetworkCategory Private" >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$adapter = Get-NetAdapter | Where-Object { $_.InterfaceDescription -notlike '*Virtual*' -and $_.InterfaceDescription -notlike '*VPN*' -and ($_.Name -like '*Ethernet*' -or $_.MediaType -eq '802.3') } | Select-Object -First 1; if ($adapter) { Write-Host ('[NET] Configuring adapter: ' + $adapter.Name); netsh interface ip set address name=$adapter.Name static 192.168.10.1 255.255.255.0 none; Set-NetConnectionProfile -InterfaceAlias $adapter.Name -NetworkCategory Private -ErrorAction SilentlyContinue; } else { netsh interface ip set address name='Ethernet' static 192.168.10.1 255.255.255.0 none; powershell -Command \"Get-NetConnectionProfile -InterfaceAlias 'Ethernet*' | Set-NetConnectionProfile -NetworkCategory Private\" >nul 2>&1; }"
 
 :: 4. Configure Windows Firewall Rules for SCADA Ports
 echo [STEP 2/4] Opening Windows Firewall for SCADA Ports (3000, 4841, 1883)...
@@ -58,4 +53,8 @@ echo ===========================================================================
 echo.
 
 cd /d "%~dp0"
-npm run build && npx next start --hostname 0.0.0.0 --port 3000
+if not exist .next (
+    echo [BUILD] Building production Next.js bundle...
+    call npm run build
+)
+npx next start --hostname 0.0.0.0 --port 3000

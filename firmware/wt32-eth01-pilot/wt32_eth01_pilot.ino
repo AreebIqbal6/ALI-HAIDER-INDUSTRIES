@@ -183,6 +183,14 @@ void WiFiEvent(WiFiEvent_t event) {
       break;
     case ARDUINO_EVENT_ETH_CONNECTED:
       Serial.println("[ETH] Cable Connected (Link Up)");
+      if (ETH.localIP() == static_ip || ETH.localIP() != IPAddress(0, 0, 0, 0)) {
+        eth_connected = true;
+        deviceMacAddress = ETH.macAddress();
+        Serial.print("[ETH] Link Ready. IP: ");
+        Serial.print(ETH.localIP());
+        Serial.print(" | MAC: ");
+        Serial.println(deviceMacAddress);
+      }
       break;
     case ARDUINO_EVENT_ETH_GOT_IP:
       Serial.print("[ETH] IP Allocated: ");
@@ -208,17 +216,25 @@ void WiFiEvent(WiFiEvent_t event) {
 // ------------------------------------------------------------------------------
 // HTTP POST with Authentication Header & Fallback
 // ------------------------------------------------------------------------------
-bool postJsonPayload(const String& jsonPayload) {
-  if (!eth_connected) {
-    Serial.println("[HTTP] Cannot POST: Ethernet link down.");
-    return false;
+int postJsonPayload(const String& jsonPayload) {
+  // If Ethernet hardware has link, ensure connected state is recognized
+  if (ETH.linkUp() && !eth_connected) {
+    eth_connected = true;
+    if (deviceMacAddress.isEmpty()) {
+      deviceMacAddress = ETH.macAddress();
+    }
+  }
+
+  if (!eth_connected && !ETH.linkUp()) {
+    Serial.println("[HTTP] Cannot POST: Ethernet physical link is down.");
+    return -1;
   }
 
   HTTPClient http;
   http.begin(INGEST_SERVER_URL);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("x-weavesync-key", INGEST_API_KEY);
-  http.setTimeout(800);
+  http.setTimeout(1200);
 
   int httpCode = http.POST(jsonPayload);
   if (httpCode <= 0) {
@@ -226,25 +242,28 @@ bool postJsonPayload(const String& jsonPayload) {
     http.begin(GATEWAY_FALLBACK_URL);
     http.addHeader("Content-Type", "application/json");
     http.addHeader("x-weavesync-key", INGEST_API_KEY);
-    http.setTimeout(800);
+    http.setTimeout(1200);
     httpCode = http.POST(jsonPayload);
   }
 
-  bool success = (httpCode >= 200 && httpCode < 300);
-  if (success) {
-    Serial.printf("[HTTP] Ingest ACK (%d)\n", httpCode);
+  if (httpCode >= 200 && httpCode < 300) {
+    Serial.printf("[HTTP] Ingest ACK (%d OK)\n", httpCode);
+  } else if (httpCode == 401) {
+    Serial.println("[HTTP ERROR 401] Unauthorized: Invalid x-weavesync-key header");
+  } else if (httpCode == 400) {
+    Serial.println("[HTTP ERROR 400] Bad Request: Payload schema mismatch");
   } else {
-    Serial.printf("[HTTP] Ingest Code: %d\n", httpCode);
+    Serial.printf("[HTTP ERROR] Status: %d (Target: %s)\n", httpCode, INGEST_SERVER_URL);
   }
 
   http.end();
-  return success;
+  return httpCode;
 }
 
 // ------------------------------------------------------------------------------
 // Emit Hardware Telemetry Frame
 // ------------------------------------------------------------------------------
-void sendHardwareTelemetry(bool running, const String& stopCat) {
+int sendHardwareTelemetry(bool running, const String& stopCat) {
   JsonDocument doc;
   
   String mac = deviceMacAddress.isEmpty() ? ETH.macAddress() : deviceMacAddress;
@@ -283,7 +302,7 @@ void sendHardwareTelemetry(bool running, const String& stopCat) {
 
   String output;
   serializeJson(doc, output);
-  postJsonPayload(output);
+  return postJsonPayload(output);
 }
 
 // ------------------------------------------------------------------------------
@@ -321,6 +340,14 @@ void setup() {
   if (!eth_connected) {
     Serial.println("[ETH] DHCP timeout. Locking onto Point-to-Point Static IP: 192.168.10.2");
     ETH.config(static_ip, gateway_ip, subnet_mask, dns_ip);
+    if (ETH.linkUp()) {
+      eth_connected = true;
+      deviceMacAddress = ETH.macAddress();
+      Serial.print("[ETH] Link established. Static IP: ");
+      Serial.print(ETH.localIP());
+      Serial.print(" | MAC: ");
+      Serial.println(deviceMacAddress);
+    }
   }
 
   stateChangeTimeMs = millis();
@@ -417,7 +444,18 @@ void loop() {
   // 2. Periodic Heartbeat every 5000ms (keeps device ONLINE on dashboard)
   if (now - lastHeartbeatMs >= 5000) {
     lastHeartbeatMs = now;
-    sendHardwareTelemetry(currentRunningState, currentStopCategory);
+    unsigned long deltaToSend = intervalPicks;
+    int respCode = sendHardwareTelemetry(currentRunningState, currentStopCategory);
+    Serial.printf("[HEARTBEAT 5s] ETH: %s (%s) | MAC: %s | STRT:%d PP:%d WD:%d FD:%d | picksDelta:%lu | Target: 192.168.10.1:3000 -> HTTP %d\n",
+      ETH.linkUp() ? "LINK_UP" : "LINK_DOWN",
+      ETH.localIP().toString().c_str(),
+      (deviceMacAddress.isEmpty() ? ETH.macAddress() : deviceMacAddress).c_str(),
+      activeStrt ? 1 : 0,
+      rawPp,
+      activeWd ? 1 : 0,
+      activeFd ? 1 : 0,
+      deltaToSend,
+      respCode);
   }
 
   delay(50); // 20 Hz loop

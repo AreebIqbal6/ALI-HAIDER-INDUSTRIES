@@ -85,14 +85,18 @@ const DirectHardwarePayloadSchema = z.object({
   rpm: z.number().nonnegative().max(2500).optional(),
   pins: HardwarePinsSchema.optional(),
   rawPins: HardwarePinsSchema.optional(),
+  rawPinHistory: z.array(z.record(z.string(), z.any())).optional(),
   picksDelta: z.number().int().nonnegative().optional(),
+  picksTotal: z.number().int().nonnegative().optional(),
   totalPicks: z.number().int().nonnegative().optional(),
   ip: z.string().max(45).optional(),
+  fw: z.string().max(32).optional(),
   firmware: z.string().max(32).optional(),
   msgId: z.string().max(128).optional(),
   seq: z.number().int().nonnegative().optional(),
-  ts: z.string().max(64).optional()
-});
+  ts: z.string().max(64).optional(),
+  since: z.string().max(64).optional()
+}).passthrough();
 
 // Zod Schema for Canonical Envelopes
 const CanonicalEnvelopeSchema = z.object({
@@ -209,8 +213,12 @@ export async function POST(req: NextRequest) {
         deviceId,
         machineId,
         ipAddress: hItem.ip,
-        firmwareVersion: hItem.firmware
+        firmwareVersion: hItem.firmware || (hItem as any).fw || 'v2.1'
       });
+
+      const extractedRawPinHistory = Array.isArray(pins.rawPinHistory)
+        ? (pins.rawPinHistory as any)
+        : (Array.isArray((hItem as any).rawPinHistory) ? (hItem as any).rawPinHistory : undefined);
 
       updateLoomTelemetry({
         machineId,
@@ -219,13 +227,13 @@ export async function POST(req: NextRequest) {
         stopCategory: detectedCategory,
         rpm,
         picksDelta: hItem.picksDelta,
-        totalPicks: hItem.totalPicks,
+        totalPicks: hItem.totalPicks ?? (hItem as any).picksTotal,
         rawPins: {
           piStrt: Number(pins.piStrt || 0),
           piPp: Number(pins.piPp || 0),
           piWd: Number(pins.piWd || 0),
           piFd: Number(pins.piFd || 0),
-          rawPinHistory: Array.isArray(pins.rawPinHistory) ? pins.rawPinHistory as any : undefined
+          rawPinHistory: extractedRawPinHistory
         },
         seq: hItem.seq,
         timestamp: hItem.ts || now
@@ -261,9 +269,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Handle Canonical Envelope Array
-    const envelopes = Array.isArray(validated)
+    const envelopes: any[] = Array.isArray(validated)
       ? validated
-      : ('batch' in validated ? validated.batch : validated.envelopes);
+      : ('batch' in (validated as any) ? (validated as any).batch : (validated as any).envelopes);
 
     for (const env of envelopes) {
       if (isInMemoryDuplicate(env.msgId)) {
