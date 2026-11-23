@@ -175,26 +175,30 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                {rawHistory.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-800/40">
-                    <td className="py-1.5 font-bold text-white">{item.pin}</td>
-                    <td className="py-1.5 text-slate-400">
-                      {item.pin === 'PI_STRT' ? 'GPIO 4' : item.pin === 'PI_PP' ? 'GPIO 32 [PCNT]' : item.pin === 'PI_WD' ? 'GPIO 33' : 'GPIO 14'}
-                    </td>
-                    <td className="py-1.5">
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                        item.level === 1 ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'
-                      }`}>
-                        {item.level === 1 ? 'HIGH (1)' : 'LOW (0)'}
-                      </span>
-                    </td>
-                    <td className="py-1.5 font-bold">
-                      <span className={item.offsetMsFromStop < 0 ? 'text-amber-400' : item.offsetMsFromStop === 0 ? 'text-red-400' : 'text-blue-400'}>
-                        {item.offsetMsFromStop > 0 ? `+${item.offsetMsFromStop}ms` : `${item.offsetMsFromStop}ms`}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {rawHistory.map((item: any, idx) => {
+                  const level = item.level !== undefined ? item.level : (item.state !== undefined ? item.state : 0);
+                  const offset = item.offsetMsFromStop !== undefined ? item.offsetMsFromStop : (item.ms !== undefined ? item.ms : 0);
+                  return (
+                    <tr key={idx} className="hover:bg-slate-800/40">
+                      <td className="py-1.5 font-bold text-white">{item.pin}</td>
+                      <td className="py-1.5 text-slate-400">
+                        {item.pin === 'PI_STRT' ? 'GPIO 4' : item.pin === 'PI_PP' ? 'GPIO 32 [PCNT]' : item.pin === 'PI_WD' ? 'GPIO 33' : 'GPIO 14'}
+                      </td>
+                      <td className="py-1.5">
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                          level === 1 ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'
+                        }`}>
+                          {level === 1 ? 'HIGH (1)' : 'LOW (0)'}
+                        </span>
+                      </td>
+                      <td className="py-1.5 font-bold">
+                        <span className={offset < 0 ? 'text-amber-400' : offset === 0 ? 'text-red-400' : 'text-blue-400'}>
+                          {offset > 0 ? `+${offset}ms` : `${offset}ms`}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

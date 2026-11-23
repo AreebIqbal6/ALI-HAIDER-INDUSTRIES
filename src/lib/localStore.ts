@@ -45,6 +45,16 @@ export interface StoredLiveState {
   operator_reason?: string | null;
   operator_note?: string | null;
   declared_at?: string | null;
+  run_ms_shift?: number;
+  stop_ms_shift?: number;
+  picks_delta_shift?: number;
+  efficiency_pct?: number;
+  stops_shift?: {
+    WARP: number;
+    FILLING: number;
+    SELVEDGE: number;
+    OTHER: number;
+  };
   last_ts: string;
   updated_at: string;
 }
@@ -139,6 +149,74 @@ if (!globalAny[globalStoreKey]) {
 }
 
 const store = globalAny[globalStoreKey]!;
+
+/**
+ * Ensures at least one working OmniPlus-i machine exists as requested
+ */
+export function ensureMockLoom(): void {
+  if (store.looms.size > 0) return;
+
+  const now = new Date().toISOString();
+  const machineId = 'PIC-427708';
+  const deviceId = '08:3A:F2:B5:12:34';
+
+  const mockLoom: StoredLoom = {
+    id: 'loom-pic-427708',
+    machine_id: machineId,
+    device_id: deviceId,
+    loom_number: 1,
+    family: 'OmniPlus-i',
+    article_name: 'Standard Sheeting (Cotton 100%)',
+    sources: ['WT32-ETH01'],
+    set_rpm: 874,
+    weft_density_picks_per_cm: 27.2,
+    ip_address: '192.168.10.101',
+    firmware_version: 'v2.1',
+    status: 'RUNNING',
+    last_heartbeat_at: now,
+    created_at: new Date(Date.now() - 6 * 3600 * 1000).toISOString()
+  };
+
+  const mockLive: StoredLiveState = {
+    machine_id: machineId,
+    device_id: deviceId,
+    state: 'RUNNING',
+    stop_category: null,
+    stop_id: null,
+    since: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+    rpm: 875,
+    total_picks: 245600,
+    meters_woven: 90.3,
+    run_ms_shift: 24480000,
+    stop_ms_shift: 1440000,
+    picks_delta_shift: 245600,
+    efficiency_pct: 94.4,
+    stops_shift: { WARP: 1, FILLING: 2, SELVEDGE: 0, OTHER: 0 },
+    warp_tension_kn: 2.15,
+    air_pressure_bar: 6.2,
+    raw_pins: {
+      piStrt: 1,
+      piPp: 1,
+      piWd: 0,
+      piFd: 0,
+      rawPinHistory: [
+        { pin: 'PI_STRT', level: 1, offsetMsFromStop: 0 } as any,
+        { pin: 'PI_PP', level: 1, offsetMsFromStop: -120 } as any
+      ]
+    },
+    last_ts: now,
+    updated_at: now
+  };
+
+  store.looms.set(machineId, mockLoom);
+  store.liveStates.set(machineId, mockLive);
+  persistToDisk();
+}
+
+// Auto-seed mock loom on startup
+if (store.looms.size === 0) {
+  ensureMockLoom();
+}
 
 /**
  * Computes temporal connection status from last heartbeat
@@ -362,6 +440,10 @@ export function assignStopReason(params: {
  * Dynamically computes ONLINE / STALE / OFFLINE
  */
 export function getLocalStoreSnapshot() {
+  if (store.looms.size === 0) {
+    ensureMockLoom();
+  }
+
   const loomsList: Array<StoredLoom & {
     liveState: StoredLiveState;
     connectionStatus: 'ONLINE' | 'STALE' | 'OFFLINE';
@@ -369,6 +451,11 @@ export function getLocalStoreSnapshot() {
   }> = [];
 
   for (const [mId, loom] of store.looms.entries()) {
+    // Keep mock machine active with fresh heartbeat
+    if (mId === 'PIC-427708' && loom.device_id === '08:3A:F2:B5:12:34') {
+      loom.last_heartbeat_at = new Date().toISOString();
+    }
+
     const live = store.liveStates.get(mId) || {
       machine_id: mId,
       device_id: loom.device_id,
@@ -382,6 +469,11 @@ export function getLocalStoreSnapshot() {
       last_ts: loom.last_heartbeat_at || loom.created_at,
       updated_at: loom.last_heartbeat_at || loom.created_at
     };
+
+    if (mId === 'PIC-427708' && loom.device_id === '08:3A:F2:B5:12:34') {
+      live.last_ts = loom.last_heartbeat_at;
+      live.updated_at = loom.last_heartbeat_at;
+    }
 
     const conn = getLoomConnectionStatus(loom.last_heartbeat_at);
 
@@ -415,13 +507,10 @@ export function getLocalStoreSnapshot() {
 
   for (const l of loomsList) {
     totalMeters += l.liveState.meters_woven || 0;
-    if (l.liveState.state === 'RUNNING') {
-      sumRunMs += 50000;
-      sumObservedMs += 60000;
-    } else if (l.liveState.state === 'STOPPED') {
-      sumRunMs += 10000;
-      sumObservedMs += 60000;
-    }
+    const runMs = l.liveState.run_ms_shift || (l.liveState.state === 'RUNNING' ? 50000 : 0);
+    const stopMs = l.liveState.stop_ms_shift || (l.liveState.state === 'STOPPED' ? 10000 : 0);
+    sumRunMs += runMs;
+    sumObservedMs += (runMs + stopMs) || 60000;
   }
 
   const avgEfficiency = totalLooms > 0 && sumObservedMs > 0
