@@ -3,8 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 const envSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 export const isSupabaseEnabled = 
   process.env.NEXT_PUBLIC_ENABLE_SUPABASE === 'true' && 
-  Boolean(envSupabaseUrl) &&
-  !envSupabaseUrl.includes('viiilmbgqldwlzyarmdz');
+  Boolean(envSupabaseUrl);
 
 const supabaseUrl = envSupabaseUrl || 'https://localhost.placeholder';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
