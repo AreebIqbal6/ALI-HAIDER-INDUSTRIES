@@ -48,6 +48,10 @@ export const EventDataSchema = z.object({
   durationMs: nonNegInt.nullable().optional(),
   failedStartAttempts: nonNegInt.nullable().optional(),
   picksTotal: nonNegInt.nullable().optional(),
+  // Sent by firmware ldl-wt32: START_ATTEMPT_FAILED and COUNTER_DISCONTINUITY details.
+  attempt: nonNegInt.nullable().optional(),
+  picksInAttempt: nonNegInt.nullable().optional(),
+  reason: z.string().max(64).nullable().optional(),
 });
 
 export const CountersDataSchema = z.object({
