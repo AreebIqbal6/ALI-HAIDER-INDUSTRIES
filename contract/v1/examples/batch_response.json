@@ -1,0 +1,22 @@
+{
+  "serverTime": "2026-11-26T09:17:00.391Z",
+  "results": [
+    {
+      "msgId": "0193c8a2-5f10-7a3b-9c4d-1a2b3c4d5e01",
+      "status": "stored"
+    },
+    {
+      "msgId": "0193c8a2-5f10-7a3b-9c4d-1a2b3c4d5e02",
+      "status": "duplicate"
+    },
+    {
+      "msgId": "0193c8a3-6a00-7f01-a000-1a2b3c4d5e04",
+      "status": "stored"
+    },
+    {
+      "msgId": "0193c8a3-6a10-7f02-a000-1a2b3c4d5e05",
+      "status": "rejected",
+      "reason": "machineId does not match device registration"
+    }
+  ]
+}
