@@ -1,0 +1,67 @@
+menu "Loom Data Logger (LDL)"
+
+    config LDL_ENDPOINT_URL
+        string "Ingest endpoint base URL"
+        default ""
+        help
+            Base URL of the backend, e.g. https://example.com. The firmware
+            posts to <url>/api/ingest/v1/batch. Leave empty and set it at
+            runtime with the console command `set url <value>`. The device
+            token is never compiled in: use `set token <value>`.
+
+    config LDL_MACHINE_ID
+        string "Default machine id"
+        default "PIC-427708"
+
+    config LDL_SNTP_SERVER
+        string "Default SNTP server"
+        default "pool.ntp.org"
+
+    config LDL_FIRMWARE_VERSION
+        string "Firmware version string"
+        default "ldl-wt32 0.1.0"
+
+    config LDL_CLASSIFY_PRE_MS
+        int "Stop classification window before STRT edge (ms)"
+        range 0 5000
+        default 300
+
+    config LDL_CLASSIFY_POST_MS
+        int "Stop classification window after STRT edge (ms)"
+        range 0 10000
+        default 1000
+
+    config LDL_FAILED_START_PICKS
+        int "A restart that stops within this many picks is a failed start"
+        range 0 100
+        default 5
+
+    config LDL_DEBOUNCE_MS
+        int "Input debounce time (ms)"
+        range 1 500
+        default 20
+
+    config LDL_STATE_INTERVAL_S
+        int "Periodic state message interval (s)"
+        default 60
+
+    config LDL_HEALTH_INTERVAL_S
+        int "Health message interval (s)"
+        default 60
+
+    config LDL_JOURNAL_INTERVAL_MS
+        int "Counter journal interval (ms)"
+        default 1000
+        help
+            A record is written at this interval when picks changed, and at
+            least every 60 s otherwise (limits flash wear while idle).
+
+    config LDL_DHCP_TIMEOUT_S
+        int "Seconds to wait for DHCP before using the static fallback"
+        default 10
+
+    config LDL_STATUS_PAGE
+        bool "Enable HTTP status page on port 80"
+        default y
+
+endmenu
