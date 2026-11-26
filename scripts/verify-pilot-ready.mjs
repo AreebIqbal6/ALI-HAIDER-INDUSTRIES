@@ -7,7 +7,11 @@
  */
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
-const INGEST_KEY = process.env.INGEST_API_KEY || 'weavesync-industrial-secret-2026';
+const INGEST_KEY = process.env.LEGACY_INGEST_KEY || process.env.INGEST_API_KEY || '';
+if (!INGEST_KEY) {
+  console.error('Set LEGACY_INGEST_KEY (legacy x-weavesync-key) before running this script.');
+  process.exit(1);
+}
 const AUTH_HEADERS = {
   'Content-Type': 'application/json',
   'x-weavesync-key': INGEST_KEY

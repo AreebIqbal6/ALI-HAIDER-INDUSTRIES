@@ -65,7 +65,13 @@ const bool OPTO_ACTIVE_LOW = true;
 #define GATEWAY_ID "AHI-GW-01"
 #define DEFAULT_SET_RPM 874
 #define WEFT_DENSITY 27.2
-#define INGEST_API_KEY "weavesync-industrial-secret-2026"
+// Ingest key is injected at build time, never committed, e.g.
+//   arduino-cli compile --build-property "build.extra_flags=-DINGEST_KEY=\\\"<key>\\\""
+// Empty default => the server rejects requests (fail closed).
+#ifndef INGEST_KEY
+#define INGEST_KEY ""
+#endif
+#define INGEST_API_KEY INGEST_KEY
 #define FIRMWARE_VERSION "v2.1-prod"
 
 // ------------------------------------------------------------------------------
