@@ -264,7 +264,7 @@ export const AnalyticsDashboard: React.FC = () => {
                           {loom.rpm} RPM
                         </td>
                         <td className="py-2.5 px-3 font-bold text-emerald-600">
-                          {loom.efficiencyPercentage.toFixed(1)}%
+                          {loom.efficiencyPercentage !== null ? `${loom.efficiencyPercentage.toFixed(1)}%` : '—'}
                         </td>
                         <td className="py-2.5 px-3">
                           {loom.metresWoven.toFixed(1)} m

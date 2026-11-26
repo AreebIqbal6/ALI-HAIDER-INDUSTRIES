@@ -194,7 +194,7 @@ export const LoomDashboard: React.FC = () => {
                   Efficiency
                 </span>
                 <div className="text-xl sm:text-3xl font-bold font-mono tabular-nums text-slate-900 mt-0.5">
-                  {loom.efficiencyPercentage.toFixed(1)}%
+                  {loom.efficiencyPercentage !== null ? `${loom.efficiencyPercentage.toFixed(1)}%` : '—'}
                 </div>
                 <span className="text-[11px] text-slate-500 font-mono block mt-0.5">
                   Run: {(loom.runMsShift / 3600000).toFixed(1)}h

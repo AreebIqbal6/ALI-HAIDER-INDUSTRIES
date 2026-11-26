@@ -150,72 +150,60 @@ if (!globalAny[globalStoreKey]) {
 
 const store = globalAny[globalStoreKey]!;
 
+// Fingerprint of the fake loom that older builds auto-seeded and persisted to disk.
+// Purge it so stale local_store.json files no longer show a phantom "ONLINE" machine.
+const LEGACY_MOCK_MACHINE_ID = 'PIC-427708';
+const LEGACY_MOCK_DEVICE_ID = '08:3A:F2:B5:12:34';
+{
+  const legacy = store.looms.get(LEGACY_MOCK_MACHINE_ID);
+  if (legacy && legacy.device_id === LEGACY_MOCK_DEVICE_ID) {
+    store.looms.delete(LEGACY_MOCK_MACHINE_ID);
+    store.liveStates.delete(LEGACY_MOCK_MACHINE_ID);
+    persistToDisk();
+  }
+}
+
+export const DEMO_MACHINE_ID = 'DEMO-0001';
+const DEMO_DEVICE_ID = 'demo-device-0001';
+
+export function isDemoMode(): boolean {
+  return process.env.DEMO_MODE === 'true';
+}
+
 /**
- * Ensures at least one working OmniPlus-i machine exists as requested
+ * Seeds a clearly-labelled demo loom (DEMO-0001) — only when DEMO_MODE === 'true'.
+ * Never seeds anything in normal operation.
  */
-export function ensureMockLoom(): void {
-  if (store.looms.size > 0) return;
-
+export function ensureDemoLoom(): void {
+  if (!isDemoMode() || store.looms.has(DEMO_MACHINE_ID)) return;
   const now = new Date().toISOString();
-  const machineId = 'PIC-427708';
-  const deviceId = '08:3A:F2:B5:12:34';
-
-  const mockLoom: StoredLoom = {
-    id: 'loom-pic-427708',
-    machine_id: machineId,
-    device_id: deviceId,
-    loom_number: 1,
+  store.looms.set(DEMO_MACHINE_ID, {
+    id: 'loom-demo-0001',
+    machine_id: DEMO_MACHINE_ID,
+    device_id: DEMO_DEVICE_ID,
+    loom_number: null,
     family: 'OmniPlus-i',
-    article_name: 'Standard Sheeting (Cotton 100%)',
-    sources: ['WT32-ETH01'],
+    article_name: 'DEMO (not real data)',
+    sources: ['DEMO'],
     set_rpm: 874,
     weft_density_picks_per_cm: 27.2,
-    ip_address: '192.168.10.101',
-    firmware_version: 'v2.1',
     status: 'RUNNING',
     last_heartbeat_at: now,
-    created_at: new Date(Date.now() - 6 * 3600 * 1000).toISOString()
-  };
-
-  const mockLive: StoredLiveState = {
-    machine_id: machineId,
-    device_id: deviceId,
+    created_at: now
+  });
+  store.liveStates.set(DEMO_MACHINE_ID, {
+    machine_id: DEMO_MACHINE_ID,
+    device_id: DEMO_DEVICE_ID,
     state: 'RUNNING',
     stop_category: null,
     stop_id: null,
-    since: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-    rpm: 875,
-    total_picks: 245600,
-    meters_woven: 90.3,
-    run_ms_shift: 24480000,
-    stop_ms_shift: 1440000,
-    picks_delta_shift: 245600,
-    efficiency_pct: 94.4,
-    stops_shift: { WARP: 1, FILLING: 2, SELVEDGE: 0, OTHER: 0 },
-    warp_tension_kn: 2.15,
-    air_pressure_bar: 6.2,
-    raw_pins: {
-      piStrt: 1,
-      piPp: 1,
-      piWd: 0,
-      piFd: 0,
-      rawPinHistory: [
-        { pin: 'PI_STRT', level: 1, offsetMsFromStop: 0 } as any,
-        { pin: 'PI_PP', level: 1, offsetMsFromStop: -120 } as any
-      ]
-    },
+    since: now,
+    rpm: 870,
+    total_picks: 0,
+    meters_woven: 0,
     last_ts: now,
     updated_at: now
-  };
-
-  store.looms.set(machineId, mockLoom);
-  store.liveStates.set(machineId, mockLive);
-  persistToDisk();
-}
-
-// Auto-seed mock loom on startup
-if (store.looms.size === 0) {
-  ensureMockLoom();
+  });
 }
 
 /**
@@ -326,7 +314,8 @@ export function updateLoomTelemetry(params: {
     machineId: params.machineId
   });
 
-  loom.last_heartbeat_at = now;
+  // Liveness = server receive time, never the device-supplied timestamp.
+  loom.last_heartbeat_at = new Date().toISOString();
   loom.status = params.state;
 
   let live = store.liveStates.get(params.machineId);
@@ -440,9 +429,7 @@ export function assignStopReason(params: {
  * Dynamically computes ONLINE / STALE / OFFLINE
  */
 export function getLocalStoreSnapshot() {
-  if (store.looms.size === 0) {
-    ensureMockLoom();
-  }
+  ensureDemoLoom();
 
   const loomsList: Array<StoredLoom & {
     liveState: StoredLiveState;
@@ -451,8 +438,9 @@ export function getLocalStoreSnapshot() {
   }> = [];
 
   for (const [mId, loom] of store.looms.entries()) {
-    // Keep mock machine active with fresh heartbeat
-    if (mId === 'PIC-427708' && loom.device_id === '08:3A:F2:B5:12:34') {
+    // The demo loom (DEMO_MODE only) is kept "alive" so the UI can be shown without hardware.
+    const isDemo = isDemoMode() && mId === DEMO_MACHINE_ID;
+    if (isDemo) {
       loom.last_heartbeat_at = new Date().toISOString();
     }
 
@@ -470,7 +458,7 @@ export function getLocalStoreSnapshot() {
       updated_at: loom.last_heartbeat_at || loom.created_at
     };
 
-    if (mId === 'PIC-427708' && loom.device_id === '08:3A:F2:B5:12:34') {
+    if (isDemo) {
       live.last_ts = loom.last_heartbeat_at;
       live.updated_at = loom.last_heartbeat_at;
     }
@@ -507,10 +495,11 @@ export function getLocalStoreSnapshot() {
 
   for (const l of loomsList) {
     totalMeters += l.liveState.meters_woven || 0;
-    const runMs = l.liveState.run_ms_shift || (l.liveState.state === 'RUNNING' ? 50000 : 0);
-    const stopMs = l.liveState.stop_ms_shift || (l.liveState.state === 'STOPPED' ? 10000 : 0);
+    // Only measured shift counters count toward efficiency; no invented defaults.
+    const runMs = l.liveState.run_ms_shift ?? 0;
+    const stopMs = l.liveState.stop_ms_shift ?? 0;
     sumRunMs += runMs;
-    sumObservedMs += (runMs + stopMs) || 60000;
+    sumObservedMs += runMs + stopMs;
   }
 
   const avgEfficiency = totalLooms > 0 && sumObservedMs > 0

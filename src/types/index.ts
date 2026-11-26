@@ -55,8 +55,17 @@ export interface CanonicalEnvelope<T = unknown> {
   ts: string;
   tsQuality?: 'SYNCED' | 'ESTIMATED';
   replayed?: boolean;
+  /** Contract v1: increments on every logger boot; seq restarts at 1 each boot. */
+  bootId?: number;
   data: T;
 }
+
+/** Contract v1 event types (ahi.loom.event/1.0). */
+export type LoomEventType =
+  | 'STOP_STARTED'
+  | 'STOP_ENDED'
+  | 'START_ATTEMPT_FAILED'
+  | 'COUNTER_DISCONTINUITY';
 
 export interface LoomStateData {
   state: LoomStateKind;
@@ -64,6 +73,7 @@ export interface LoomStateData {
   stopId: string | null;
   since: string;
   rpm: number;
+  picksTotal?: number;
 }
 
 export interface StopStartedEventData {
@@ -71,6 +81,7 @@ export interface StopStartedEventData {
   stopId: string;
   stopCategory: StopCategory;
   detectedAt: string;
+  picksTotal?: number;
 }
 
 export interface StopEndedEventData {
@@ -81,7 +92,29 @@ export interface StopEndedEventData {
   failedStartAttempts: number;
   resolvedBy?: string;
   operatorReason?: OperatorReasonCode | null;
+  picksTotal?: number;
 }
+
+export interface StartAttemptFailedEventData {
+  eventType: 'START_ATTEMPT_FAILED';
+  stopId?: string | null;
+  stopCategory?: StopCategory | null;
+  detectedAt?: string | null;
+  failedStartAttempts?: number | null;
+  picksTotal?: number | null;
+}
+
+export interface CounterDiscontinuityEventData {
+  eventType: 'COUNTER_DISCONTINUITY';
+  detectedAt?: string | null;
+  picksTotal?: number | null;
+}
+
+export type LoomEventData =
+  | StopStartedEventData
+  | StopEndedEventData
+  | StartAttemptFailedEventData
+  | CounterDiscontinuityEventData;
 
 export interface LoomCountersData {
   windowStart: string;
@@ -117,11 +150,17 @@ export interface GatewayHealthData {
 }
 
 export interface DeviceHealthData {
-  status: 'ONLINE' | 'DEGRADED' | 'OFFLINE';
-  ipAddress?: string;
-  firmwareVersion?: string;
+  status: 'ONLINE' | 'DEGRADED' | 'OFFLINE' | (string & {});
+  ipAddress?: string | null;
+  firmwareVersion?: string | null;
   uptimeSeconds: number;
   lastError?: string | null;
+  // Contract v1 logger fields (optional for backwards compatibility)
+  bootId?: number;
+  bufferType?: string;
+  bufferBacklog?: number;
+  clockSynced?: boolean;
+  linkUp?: boolean;
 }
 
 export interface HardwarePinHistoryItem {
@@ -191,7 +230,8 @@ export interface LoomClientState {
     OTHER: number;
   };
   rpmAvgRunning: number;
-  efficiencyPercentage: number;
+  /** null when no measured run/stop time exists yet (UI renders "—") */
+  efficiencyPercentage: number | null;
   metresWoven: number;
   cmpx: number;
   

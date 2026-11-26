@@ -337,7 +337,7 @@ export const MachineMatrixGrid: React.FC<MachineMatrixGridProps> = ({
                 <div className="my-1.5">
                   <div className="flex items-baseline justify-between">
                     <span className="text-lg sm:text-2xl font-mono font-bold text-slate-900 tracking-tight tabular-nums">
-                      {loom.efficiencyPercentage.toFixed(1)}%
+                      {loom.efficiencyPercentage !== null ? `${loom.efficiencyPercentage.toFixed(1)}%` : '—'}
                     </span>
                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
                       isRunning 
