@@ -1,0 +1,25 @@
+{
+  "schema": "ahi.device.health/1.0",
+  "msgId": "0193c8a3-6a10-7f02-a000-1a2b3c4d5e05",
+  "seq": 1061,
+  "bootId": 17,
+  "deviceId": "e0e2e6aabbcc",
+  "machineId": "PIC-427708",
+  "gatewayId": "none",
+  "source": "LDL",
+  "ts": "2026-11-26T09:17:00.250Z",
+  "tsQuality": "SYNCED",
+  "replayed": false,
+  "data": {
+    "status": "ONLINE",
+    "ipAddress": "10.20.30.41",
+    "firmwareVersion": "ldl-wt32 0.1.0",
+    "uptimeSeconds": 86412,
+    "lastError": null,
+    "bootId": 17,
+    "bufferType": "flash",
+    "bufferBacklog": 0,
+    "clockSynced": true,
+    "linkUp": true
+  }
+}
