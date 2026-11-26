@@ -51,15 +51,22 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const realtimeChannelRef = useRef<any>(null);
   const isMountedRef = useRef<boolean>(true);
+  // Last server-side heartbeat per machine (looms.last_heartbeat_at), reused for realtime row updates.
+  const lastHeartbeatRef = useRef<Record<string, string | null>>({});
 
   // Helper to map DB/Local record to LoomClientState
   const mapRecordToLoomState = useCallback((record: any, existing?: LoomClientState): LoomClientState => {
     const live = record.loom_live_state || record.liveState || {};
     const machineId = record.machine_id;
     const deviceId = record.device_id || live.device_id || machineId;
-    const lastHeartbeat = record.last_heartbeat_at || live.last_ts || live.updated_at || new Date().toISOString();
-
-    const secondsAgo = Math.max(0, Math.floor((Date.now() - new Date(lastHeartbeat).getTime()) / 1000));
+    // Liveness comes ONLY from the server receive time (looms.last_heartbeat_at),
+    // never from the device clock and never from "now" — no heartbeat => OFFLINE.
+    const lastHeartbeat: string | null = record.last_heartbeat_at || null;
+    lastHeartbeatRef.current[machineId] = lastHeartbeat;
+    const heartbeatMs = lastHeartbeat ? new Date(lastHeartbeat).getTime() : NaN;
+    const secondsAgo = Number.isNaN(heartbeatMs)
+      ? Number.POSITIVE_INFINITY
+      : Math.max(0, Math.floor((Date.now() - heartbeatMs) / 1000));
     let connStatus: 'ONLINE' | 'STALE' | 'OFFLINE' = 'ONLINE';
     if (secondsAgo > 60) connStatus = 'OFFLINE';
     else if (secondsAgo > 15) connStatus = 'STALE';
@@ -96,10 +103,11 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       stopMsShift: live.stop_ms_shift || existing?.stopMsShift || 0,
       offlineMsShift: 0,
       stopsShift: live.stops_shift || existing?.stopsShift || { WARP: 0, FILLING: 0, SELVEDGE: 0, OTHER: 0 },
-      rpmAvgRunning: effectiveRpm > 0 ? effectiveRpm : (existing?.rpmAvgRunning || record.set_rpm || 874),
-      efficiencyPercentage: live.efficiency_pct !== undefined 
-        ? live.efficiency_pct 
-        : existing?.efficiencyPercentage || (effectiveState === 'RUNNING' ? 94.2 : 0),
+      rpmAvgRunning: effectiveRpm > 0 ? effectiveRpm : (existing?.rpmAvgRunning ?? 0),
+      // No invented efficiency: only a measured value, otherwise null ("—" in the UI).
+      efficiencyPercentage: typeof live.efficiency_pct === 'number'
+        ? live.efficiency_pct
+        : (existing?.efficiencyPercentage ?? null),
       metresWoven: live.meters_woven || existing?.metresWoven || 0.0,
       cmpx: existing?.cmpx || 0.0,
       isLongStop,
@@ -107,14 +115,14 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       operatorReasonCode: (live.operator_reason as OperatorReasonCode) || null,
       operatorReasonNote: live.operator_note || null,
       declaredBy: live.declared_by || null,
-      lastUpdated: live.updated_at || lastHeartbeat,
+      lastUpdated: live.updated_at || lastHeartbeat || '',
       hardwareDiagnostics: rawPins ? {
         deviceId,
-        firmwareVersion: record.firmware_version || 'v2.1-pilot',
+        firmwareVersion: record.firmware_version || '—',
         lanPhyStatus: connStatus === 'OFFLINE' ? 'LINK_DOWN' : 'CONNECTED',
-        ipAddress: record.ip_address || '192.168.10.101',
+        ipAddress: record.ip_address || '—',
         macAddress: deviceId,
-        lastHeartbeat,
+        lastHeartbeat: lastHeartbeat || '',
         pins: {
           piStrt: Boolean(rawPins.piStrt),
           piPp: Boolean(rawPins.piPp),
@@ -203,11 +211,20 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 setLooms(prev => {
                   const existing = prev[newLive.machine_id];
                   if (!existing) {
-                    pollLocalState();
                     return prev;
                   }
+                  // Keep the server-side heartbeat from the last looms fetch.
                   const updated = mapRecordToLoomState({
-                    ...existing,
+                    machine_id: existing.machineId,
+                    device_id: existing.deviceId,
+                    loom_number: existing.loomNumber,
+                    family: existing.family,
+                    sources: existing.sources,
+                    set_rpm: existing.setRpm,
+                    weft_density_picks_per_cm: existing.weftDensityPicksPerCm,
+                    ip_address: existing.ipAddress,
+                    article_name: existing.articleName,
+                    last_heartbeat_at: lastHeartbeatRef.current[existing.machineId] ?? null,
                     loom_live_state: newLive
                   }, existing);
                   return { ...prev, [newLive.machine_id]: updated };
@@ -233,39 +250,38 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     };
 
-    // Initial fetch from Supabase (or fallback to Local LAN)
-    const initDataFetch = async () => {
+    // Fetch looms + live state from Supabase. Re-run periodically because liveness
+    // (looms.last_heartbeat_at) and counters are not covered by the realtime channel.
+    let realtimeStarted = false;
+    const fetchSupabaseLooms = async () => {
       try {
         const { data: dbLooms, error } = await supabase
           .from('looms')
           .select('*, loom_live_state(*)');
-
-        if (!error && dbLooms && dbLooms.length > 0) {
+        if (error) throw error;
+        if (!isMountedRef.current) return;
+        setLooms(prev => {
           const loomMap: Record<string, LoomClientState> = {};
-          dbLooms.forEach((item: any) => {
-            loomMap[item.machine_id] = mapRecordToLoomState(item);
+          (dbLooms || []).forEach((item: any) => {
+            const live = Array.isArray(item.loom_live_state) ? item.loom_live_state[0] : item.loom_live_state;
+            loomMap[item.machine_id] = mapRecordToLoomState({ ...item, loom_live_state: live || {} }, prev[item.machine_id]);
           });
-          if (isMountedRef.current) {
-            setLooms(loomMap);
-            setSystemStatus('CLOUD_LIVE');
-          }
-          // Supabase is reachable, enable realtime channel
+          return loomMap;
+        });
+        setSystemStatus('CLOUD_LIVE');
+        if (!realtimeStarted) {
+          realtimeStarted = true;
           setupRealtimeSubscription();
-        } else {
-          // If Supabase has 0 rows, error, or paused, use Local LAN
-          if (isMountedRef.current) setSystemStatus('LOCAL_LAN');
-          await pollLocalState();
         }
       } catch {
+        // Supabase unreachable: fall back to the local LAN endpoint
         if (isMountedRef.current) setSystemStatus('LOCAL_LAN');
         await pollLocalState();
       }
     };
 
-    initDataFetch();
-
-    // Polling interval for Local LAN fallback & heartbeat freshness (every 1.5s)
-    const pollTimer = setInterval(pollLocalState, 1500);
+    fetchSupabaseLooms();
+    const pollTimer = setInterval(fetchSupabaseLooms, 5000);
 
     return () => {
       isMountedRef.current = false;
@@ -383,8 +399,9 @@ export const TelemetryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     loomList.forEach(l => {
       totalPicks += l.picksTotal || 0;
       totalMetres += l.metresWoven || 0;
-      sumRunMs += l.runMsShift || (l.state === 'RUNNING' ? 50000 : 0);
-      sumObservedMs += (l.runMsShift + l.stopMsShift) || 60000;
+      // Measured shift counters only — no invented run/observed time.
+      sumRunMs += l.runMsShift || 0;
+      sumObservedMs += (l.runMsShift || 0) + (l.stopMsShift || 0);
       totalStops += (l.stopsShift.WARP + l.stopsShift.FILLING + l.stopsShift.SELVEDGE + l.stopsShift.OTHER);
       stopsByCategory.WARP += l.stopsShift.WARP;
       stopsByCategory.FILLING += l.stopsShift.FILLING;
