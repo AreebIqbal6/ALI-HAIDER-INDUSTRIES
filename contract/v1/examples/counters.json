@@ -1,0 +1,29 @@
+{
+  "schema": "ahi.loom.counters/1.0",
+  "msgId": "0193c8a3-6a00-7f01-a000-1a2b3c4d5e04",
+  "seq": 1060,
+  "bootId": 17,
+  "deviceId": "e0e2e6aabbcc",
+  "machineId": "PIC-427708",
+  "gatewayId": "none",
+  "source": "LDL",
+  "ts": "2026-11-26T09:17:00.010Z",
+  "tsQuality": "SYNCED",
+  "replayed": false,
+  "data": {
+    "windowStart": "2026-11-26T09:16:00.000Z",
+    "windowEnd": "2026-11-26T09:17:00.000Z",
+    "picksDelta": 812,
+    "picksTotal": 1535024,
+    "runMs": 55800,
+    "stopMs": 4200,
+    "offlineMs": 0,
+    "stops": {
+      "WARP": 1,
+      "FILLING": 0,
+      "SELVEDGE": 0,
+      "OTHER": 0
+    },
+    "rpmAvgRunning": 873.1
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "ahi.loom.event/1.0",
+  "msgId": "0193c8a3-2b40-7e55-b311-1a2b3c4d5e03",
+  "seq": 1051,
+  "bootId": 17,
+  "deviceId": "e0e2e6aabbcc",
+  "machineId": "PIC-427708",
+  "gatewayId": "none",
+  "source": "LDL",
+  "ts": "2026-11-26T09:16:10.004Z",
+  "tsQuality": "SYNCED",
+  "replayed": false,
+  "data": {
+    "eventType": "STOP_ENDED",
+    "stopId": "0193c8a2-5f0f-7c11-8a22-3b4c5d6e7f80",
+    "stopCategory": "WARP",
+    "durationMs": 67884,
+    "failedStartAttempts": 0,
+    "picksTotal": 1534212
+  }
+}
