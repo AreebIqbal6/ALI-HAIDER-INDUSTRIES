@@ -67,3 +67,27 @@ Supabase free tier automatically paused project `ALI-HAIDER-INDUSTRIES` due to a
 4. **Copy & Type:** Replaced shouty ALL-CAPS uppercase tracked labels (`SHIFT EFFICIENCY`, `ACTIVE RUNNING`) with professional sentence-case typography (`Shift efficiency`, `Active looms`, `Shift output`). Removed formulaic subtext (`Verified (Run / Elapsed)` -> `Target: 92.0%`).
 5. **Details & Radii:** Nested radii (`rounded-xl` for cards, `rounded-lg` for inputs/controls, eliminated arbitrary full pills). Removed duplicate connection status pill from the floor subheader so the shift context breathes cleanly.
 6. **Verification:** `npm run build` compiled with code 0. `npm run verify-pilot` passed 5/5. Playwright headless browser audit confirmed 0 console errors and 0 warnings.
+
+
+## [2026-11-28] Full-Stack Audit, Cloud Live Fixes, RLS Hardening & Verification (`fcb97ff`)
+
+### Issues Identified & Resolved
+1. **Cloud Live Telemetry & Realtime (`TelemetryContext.tsx`, `types/index.ts`):**
+   - Stopped `fetchSupabaseLooms()` from falling back to empty `/api/live/state` on transient errors (which wiped Cloud looms).
+   - Added `'CONNECTING'` startup status so Cloud mode avoids flashing `Disconnected` before initial fetch resolves.
+   - Paginated `loom_minute_counters` queries in 1,000-row chunks to prevent PostgREST silent truncation on multi-loom 12h shifts.
+   - Subscribed Realtime to both `looms` and `loom_live_state`, handled `DELETE` events, updated heartbeat tracking using fresher `updated_at`, fixed `device_health` lookup by `machine_id`, preserved `article_name`, and fixed shift rollover carryover & `metresWoven` jumps.
+2. **UI Flows, Validation & Anti-Slop Polish (`MachineMatrixGrid.tsx`, `Header.tsx`, `LoomDashboard.tsx`, `AnalyticsDashboard.tsx`, `error.tsx`, `layout.tsx`, `manifest.ts`, `robots.ts`):**
+   - Wired the **Configure** button on loom cards to the previously unreachable modal, switched numeric fields to string inputs with submit validation, prefilled modal values, and allowed editing already-declared stop reasons.
+   - Aligned Cloud empty-state copy with Contract v1 (`Authorization: Bearer <device token>`), guarded `since` parsing against `NaN`, fixed null `stopCategory` displaying `'WARP'`, removed fabricated `3` min MTTR Pareto fallback, removed remaining `animate-pulse`/`font-black`, and added `manifest.ts` + `robots.ts`.
+3. **API & Security Hardening (`operatorAuth.ts`, `configure-loom`, `declare-stop`, `next.config.ts`, `007_rls_security_hardening.sql`):**
+   - Added 16 KB bounded body parsing (`413`), rate limiting, `sec-fetch-site: cross-site` CSRF check (`403`), optional `OPERATOR_API_KEY` check, `409 Conflict` on duplicate `loom_number`, `Cache-Control: no-store` on live state `GET` routes, and tightened `connect-src` CSP in `next.config.ts` to `'self'` + `*.supabase.co`.
+   - Authored idempotent migration `supabase/migrations/007_rls_security_hardening.sql` to close the `001` `WITH CHECK (true)` anon-insert RLS loophole, add 3 query indexes, harden view/RPC security context, and ensure `looms`/`loom_live_state` are in `supabase_realtime`.
+
+### Verification
+- `npm test`: 5/5 files, 80/80 tests passed.
+- `npm run lint`: 0 errors, 0 warnings.
+- `npx tsc --noEmit` (root + `edge-gateway`): 0 errors.
+- `npm run build`: clean production build (Next.js 16.3.0 Turbopack).
+- Live Playwright inspection on `https://ali-haider-industries.vercel.app/` (desktop + `390x844` mobile, `/`, `/analytics`, `/nonexistent-404-check`): `Cloud Live` verified, `0px` mobile horizontal overflow, `0` console errors/warnings on `/` and `/analytics`, tightened CSP and `/robots.txt` + `/manifest.webmanifest` HTTP 200 confirmed.
+- Remaining user action: Execute `supabase/migrations/007_rls_security_hardening.sql` in the Supabase SQL Editor (live `anon` probe confirmed `007` is not yet applied on `viiilmbgqldwlzyarmdz.supabase.co`).

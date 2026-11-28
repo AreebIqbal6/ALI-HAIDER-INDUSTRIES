@@ -1,8 +1,9 @@
-# Progress Tracking: Zero-Mock Overhaul
+# Progress Tracking: WeaveSync SCADA
 
 ## Status Summary
-- **US-001 (Zero Mock & Auto-Registration)**: PASSED (All synthetic mocks removed, empty factory state verified, real hardware handshake upsert verified).
-- **US-002 (Dual-Mode Transport)**: PASSED (Supabase Realtime with automatic `/api/live/state` fallback, truthful status pill).
-- **US-003 (Industrial Shadcn UI)**: PASSED (Cohesive zinc canvas, 4 KPI cards, clean stop modal, hardware diagnostics tab, solar removed, custom 404).
-- **US-004 (WT32-ETH01 Firmware)**: PASSED (Picks from 0, dynamic MAC deviceId, safe GPIOs, 1:1 PCNT, 5s heartbeat + edge push with auth).
-- **US-005 (Security & Verification)**: PASSED (Zod schemas, x-weavesync-key header, 6/6 external test suite pass, zero build/typecheck errors).
+- **Data Contract v1 & Device Auth**: PASSED (`src/lib/contract/`, `src/lib/ingest/`, SHA-256 device tokens, `ingest_message` RPC, 66 contract/ingest tests).
+- **Cloud Live Telemetry & Realtime**: PASSED (`TelemetryContext.tsx` `'CONNECTING'` state, 1,000-row paginated `loom_minute_counters`, `looms` + `loom_live_state` Realtime, server-heartbeat liveness).
+- **Industrial UI & Anti-Slop Polish**: PASSED (`MachineMatrixGrid.tsx`, `Configure Loom` & `Assign Reason` modals, `LoomDashboard.tsx`, `AnalyticsDashboard.tsx`, `manifest.ts`, `robots.ts`, `error.tsx`, `not-found.tsx`).
+- **Operator & Transport Hardening**: PASSED (`operatorAuth.ts`, 16 KB `413` body guard, `409` duplicate `loom_number`, `Cache-Control: no-store`, tightened `connect-src` CSP, 80/80 Vitest + lint + tsc + `next build`).
+- **Live Vercel Inspection**: PASSED (`https://ali-haider-industries.vercel.app/` desktop & `390x844` mobile verified via Playwright MCP with `0` console errors).
+- **Pending User Action**: Run `supabase/migrations/007_rls_security_hardening.sql` in the Supabase SQL Editor (requires Supabase Dashboard access; REST `anon` probe confirmed `007` is not yet applied).

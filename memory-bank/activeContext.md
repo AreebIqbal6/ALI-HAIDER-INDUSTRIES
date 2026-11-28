@@ -1,14 +1,9 @@
-# Active Context: System Overhaul Sprint
+# Active Context: Production Cloud & Hardware Pilot Readiness
 
 ## Focus
-Executing complete zero-mock system overhaul across Database, API routes, Telemetry Context, UI Components, and Firmware.
+Full-stack Cloud Live SCADA (Next.js 16 + Supabase PostgreSQL/Realtime + Vercel) paired with Data Contract v1 (`ldl-wt32` ESP-IDF firmware) and Local LAN fallback (`localStore.ts`).
 
-## Current Milestone
-- Milestone 1: Dependencies installed (Zod, Radix UI, CVA, Tailwind Merge).
-- Milestone 2 (Next): Database migration cleanup (`docs/fleet-reference.md`, clean migrations with RLS).
-- Milestone 3: API hardening (`/api/ingest/v1/batch`, `/api/operator/declare-stop`, `/api/live/state`).
-- Milestone 4: Telemetry Context overhaul (delete all mock generators, real empty state).
-- Milestone 5: Shadcn UI rebuild (Header, KPI Strip, Loom Matrix Grid, Stop Reason Dialog, Hardware Diagnostics Tab, Shift Analytics).
-- Milestone 6: WT32-ETH01 Firmware hardening.
-- Milestone 7: Standalone external verification suite & builds.
-- Milestone 8: CodeRabbit 5-Lens quality gate & git push.
+## Latest Verified State (`fcb97ff`+)
+- **Production Website (`https://ali-haider-industries.vercel.app/`)**: Deployed & verified live in desktop + mobile (`390x844`, `0px` overflow) Chromium with `Cloud Live` status, tightened `connect-src` CSP, `/robots.txt`, `/manifest.webmanifest`, custom 404, and `0` console errors/warnings.
+- **Verification**: 80/80 Vitest tests pass (`tests/contract.test.ts`, `tests/ingest-route.test.ts`, `tests/operator-routes.test.ts`, `tests/telemetry-shift.test.ts`, `tests/firmware-events.test.ts`), ESLint clean, TypeScript clean (root + `edge-gateway`), `next build` clean.
+- **Pending Manual Step**: Apply `supabase/migrations/007_rls_security_hardening.sql` in the Supabase SQL Editor for `viiilmbgqldwlzyarmdz.supabase.co` to close the `001` `WITH CHECK (true)` anon-insert RLS loophole and add shift/downtime indexes.
