@@ -1,5 +1,24 @@
 import type { NextConfig } from "next";
 
+function buildConnectSrc(): string {
+  const sources = new Set<string>([
+    "'self'",
+    "https://*.supabase.co",
+    "wss://*.supabase.co",
+  ]);
+  const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (envUrl) {
+    try {
+      const parsed = new URL(envUrl);
+      sources.add(parsed.origin);
+      sources.add(`${parsed.protocol === "https:" ? "wss:" : "ws:"}//${parsed.host}`);
+    } catch {
+      // Ignore invalid build-time URL
+    }
+  }
+  return Array.from(sources).join(" ");
+}
+
 const securityHeaders = [
   {
     key: "X-DNS-Prefetch-Control",
@@ -27,12 +46,15 @@ const securityHeaders = [
   },
   {
     key: "Content-Security-Policy",
-    value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:;",
+    value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src ${buildConnectSrc()};`,
   },
 ];
 
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
+  turbopack: {
+    root: import.meta.dirname,
+  },
   async headers() {
     return [
       {

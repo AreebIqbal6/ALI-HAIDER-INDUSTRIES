@@ -282,7 +282,7 @@ export interface ShiftKpiSummary {
   };
 }
 
-export type SystemStatusMode = 'CLOUD_LIVE' | 'LOCAL_LAN' | 'DISCONNECTED';
+export type SystemStatusMode = 'CONNECTING' | 'CLOUD_LIVE' | 'LOCAL_LAN' | 'DISCONNECTED';
 
 export interface TelemetryContextType {
   looms: Record<string, LoomClientState>;

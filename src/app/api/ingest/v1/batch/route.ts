@@ -30,12 +30,16 @@ export async function GET() {
   for (const item of snapshot.looms) {
     liveLooms[item.machine_id] = item.liveState;
   }
-  return Response.json({
-    status: 'ONLINE',
-    timestamp: new Date().toISOString(),
-    liveLooms,
-    ...snapshot,
-  });
+  return Response.json(
+    {
+      status: 'ONLINE',
+      gatewayId: 'AHI-GW-01',
+      timestamp: new Date().toISOString(),
+      liveLooms,
+      ...snapshot,
+    },
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
 }
 
 export async function DELETE(req: NextRequest) {
@@ -51,7 +55,10 @@ export async function DELETE(req: NextRequest) {
     clearAllLooms();
     const supabase = getServiceSupabase();
     if (supabase) {
-      await supabase.from('loom_live_state').delete().neq('machine_id', '');
+      const { error } = await supabase.from('loom_live_state').delete().neq('machine_id', '');
+      if (error) {
+        return Response.json({ success: false, error: 'Database clear failed' }, { status: 503 });
+      }
     }
     return Response.json({ success: true, cleared: 'ALL' });
   }
@@ -60,7 +67,10 @@ export async function DELETE(req: NextRequest) {
     clearTestLoom(targetId);
     const supabase = getServiceSupabase();
     if (supabase) {
-      await supabase.from('loom_live_state').delete().eq('machine_id', targetId);
+      const { error } = await supabase.from('loom_live_state').delete().eq('machine_id', targetId);
+      if (error) {
+        return Response.json({ success: false, error: 'Database clear failed' }, { status: 503 });
+      }
     }
     return Response.json({ success: true, cleared: targetId });
   }

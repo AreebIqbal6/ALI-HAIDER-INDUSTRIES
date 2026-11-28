@@ -34,16 +34,29 @@ function json(body: unknown, status: number, extraHeaders?: Record<string, strin
   });
 }
 
+function getClientIp(req: Request): string {
+  const vercelIp = req.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim();
+  if (vercelIp) return vercelIp;
+  const realIp = req.headers.get('x-real-ip')?.trim();
+  if (realIp) return realIp;
+  const fwd = req.headers.get('x-forwarded-for');
+  if (fwd) {
+    const parts = fwd.split(',').map((s) => s.trim()).filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
+  return 'local';
+}
+
 async function readJsonBody(req: Request): Promise<{ ok: true; body: unknown } | { ok: false; status: number }> {
   const declared = Number(req.headers.get('content-length') ?? '0');
-  if (declared > MAX_BODY_BYTES) return { ok: false, status: 413 };
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return { ok: false, status: 413 };
   let text: string;
   try {
     text = await req.text();
   } catch {
     return { ok: false, status: 400 };
   }
-  if (text.length > MAX_BODY_BYTES) return { ok: false, status: 413 };
+  if (Buffer.byteLength(text, 'utf8') > MAX_BODY_BYTES) return { ok: false, status: 413 };
   try {
     return { ok: true, body: JSON.parse(text) };
   } catch {
@@ -54,18 +67,21 @@ async function readJsonBody(req: Request): Promise<{ ok: true; body: unknown } |
 export function createBatchHandler(deps: BatchHandlerDeps) {
   const limiter =
     deps.rateLimiter ?? createRateLimiter({ limit: DEVICE_RATE_LIMIT_PER_MIN, windowMs: 60_000 });
+  const ipPreAuthLimiter = deps.rateLimiter
+    ? null
+    : createRateLimiter({ limit: 600, windowMs: 60_000 });
   const now = deps.now ?? (() => new Date());
 
   return async function handle(req: Request): Promise<Response> {
     const authHeader = req.headers.get('authorization');
     const legacyKey = req.headers.get(LEGACY_KEY_HEADER);
+    const ip = getClientIp(req);
 
     // ---- Legacy path (opt-in via LEGACY_INGEST_KEY, no bearer token) ----------
     if (!authHeader && legacyKey !== null) {
       if (!isLegacyIngestEnabled() || !isValidLegacyKey(legacyKey)) {
         return json({ error: 'unauthorized' }, 401);
       }
-      const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'local';
       if (!limiter.check(`legacy:${ip}`)) {
         return json({ error: 'rate limit exceeded' }, 429, { 'retry-after': '60' });
       }
@@ -76,6 +92,10 @@ export function createBatchHandler(deps: BatchHandlerDeps) {
     }
 
     // ---- Contract v1 path ----------------------------------------------------
+    if (ipPreAuthLimiter && !ipPreAuthLimiter.check(`ip:${ip}`)) {
+      return json({ error: 'rate limit exceeded' }, 429, { 'retry-after': '60' });
+    }
+
     const token = parseBearer(authHeader);
     if (!token) return json({ error: 'unauthorized' }, 401);
 

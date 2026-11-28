@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Separate Node subpackage & generated story artifacts:
+    "edge-gateway/**",
+    "unslop-story/**",
   ]),
 ]);
 

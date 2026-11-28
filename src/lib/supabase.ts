@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const envSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 export const isSupabaseEnabled = 
@@ -11,14 +11,14 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholde
 const fastFetch: typeof fetch = (url, options = {}) => {
   return fetch(url, {
     ...options,
-    signal: options.signal || AbortSignal.timeout(1200),
+    signal: options.signal || AbortSignal.timeout(5000),
   });
 };
 
-// Safe dummy client if disabled to prevent runtime undefined errors
-export const supabase = isSupabaseEnabled
+// Safe null client if disabled to prevent runtime undefined errors
+export const supabase: SupabaseClient | null = isSupabaseEnabled
   ? createClient(supabaseUrl, supabaseAnonKey, { global: { fetch: fastFetch } })
-  : null as any;
+  : null;
 
 const serviceFetch: typeof fetch = (url, options = {}) => {
   return fetch(url, {

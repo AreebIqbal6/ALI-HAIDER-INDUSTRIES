@@ -1,17 +1,15 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTelemetry } from '../contexts/TelemetryContext';
-import { 
-  ArrowLeft, 
-  Activity, 
-  List, 
-  Cpu, 
-  Gauge, 
-  AlertCircle, 
-  CheckCircle2, 
-  Clock, 
+import {
+  ArrowLeft,
+  List,
+  Cpu,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
   Tag,
-  Zap
+  Zap,
 } from 'lucide-react';
 import { HardwarePinInspector } from '../components/omniplus/HardwarePinInspector';
 import { OPERATOR_REASON_LABELS } from '../types';
@@ -19,24 +17,30 @@ import { OPERATOR_REASON_LABELS } from '../types';
 type Tab = 'subsystems' | 'hardware' | 'logs';
 
 export const LoomDashboard: React.FC = () => {
-  const { 
-    looms, 
-    selectedMachineId, 
-    setSelectedMachineId, 
-    shiftKpis 
-  } = useTelemetry();
+  const { looms, selectedMachineId, setSelectedMachineId, shiftKpis } = useTelemetry();
 
   const [activeTab, setActiveTab] = useState<Tab>('subsystems');
+  const [currentTime, setCurrentTime] = useState<number>(() => Date.now());
 
   const loom = selectedMachineId !== 'GLOBAL' ? looms[selectedMachineId] : null;
+  const isStopped = Boolean(loom && loom.state === 'STOPPED');
+
+  useEffect(() => {
+    if (!isStopped) return;
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [isStopped]);
 
   if (!loom) {
     return (
       <div className="p-6 sm:p-8 text-center text-slate-800 flex flex-col items-center justify-center min-h-[50vh]">
-        <p className="mb-4 font-semibold text-sm">No machine selected or machine not found on bus.</p>
+        <p className="mb-4 font-medium text-sm">
+          No machine selected or machine not found on bus.
+        </p>
         <button
+          type="button"
           onClick={() => setSelectedMachineId('GLOBAL')}
-          className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer shadow-sm active:scale-95"
+          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-sm transition-colors"
         >
           Return to Fleet Matrix
         </button>
@@ -45,26 +49,37 @@ export const LoomDashboard: React.FC = () => {
   }
 
   const isRunning = loom.state === 'RUNNING';
-  const isStopped = loom.state === 'STOPPED';
+  const isOffline = loom.state === 'OFFLINE';
 
   const formatStopCategory = (cat: string | null) => {
     switch (cat) {
-      case 'WARP': return 'Warp Drop Wire Contact (TSF Load-Cell Break)';
-      case 'FILLING': return 'Weft Optical Detector FD1 (Arrival Failure)';
-      case 'SELVEDGE': return 'ELSY Leno Selvedge Break';
-      case 'OTHER': return 'Other Mechanical / Stop';
-      default: return 'Machine Operating Normally';
+      case 'WARP':
+        return 'Warp drop-wire contact (TSF load-cell break)';
+      case 'FILLING':
+        return 'Weft optical detector FD1 (arrival failure)';
+      case 'SELVEDGE':
+        return 'ELSY leno selvedge break';
+      case 'OTHER':
+        return 'Other mechanical / manual stop';
+      default:
+        return isStopped ? 'Unclassified stoppage' : 'Machine operating normally';
     }
   };
 
+  const sinceMs = loom.since ? new Date(loom.since).getTime() : Number.NaN;
+  const elapsedStopMs = Number.isNaN(sinceMs) ? 0 : Math.max(0, currentTime - sinceMs);
+  const elapsedMins = Math.floor(elapsedStopMs / 60000);
+  const elapsedSecs = Math.floor((elapsedStopMs % 60000) / 1000);
+
   return (
     <div className="flex flex-col h-[calc(100dvh-56px)] bg-[#e8ebf0]">
-      {/* Top Breadcrumb & Inspection Header (Mobile-Optimized) */}
+      {/* Top Breadcrumb & Inspection Header */}
       <div className="bg-white border-b border-slate-300 px-3 sm:px-4 py-2.5 sm:py-3 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-2.5">
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <button
+            type="button"
             onClick={() => setSelectedMachineId('GLOBAL')}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
           >
             <ArrowLeft size={15} />
             <span className="hidden xs:inline">Fleet</span> Grid
@@ -73,16 +88,16 @@ export const LoomDashboard: React.FC = () => {
           <div className="h-5 w-px bg-slate-200 hidden xs:block" />
 
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-            <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-none">
-              Loom #{loom.loomNumber ?? 1}
+            <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-none">
+              Loom #{loom.loomNumber ?? '—'}
             </h1>
-            <span className="text-[11px] sm:text-xs font-mono font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+            <span className="text-[11px] sm:text-xs font-mono font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
               {loom.machineId}
             </span>
-            <span className="text-[10px] sm:text-xs font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+            <span className="text-[10px] sm:text-xs font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
               {loom.family}
             </span>
-            <span className="text-[9px] sm:text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
               {loom.sources.join(', ')}
             </span>
           </div>
@@ -90,17 +105,32 @@ export const LoomDashboard: React.FC = () => {
 
         {/* Live Status Pill (Strictly Read-Only) */}
         <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
-          <div className={`px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-extrabold flex items-center gap-1.5 ${
-            isRunning 
-              ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' 
-              : 'bg-red-50 text-red-800 border border-red-300 animate-pulse'
-          }`}>
-            <span className={`w-2 h-2 rounded-full ${isRunning ? 'bg-emerald-500' : 'bg-red-500'}`} />
-            <span>{isRunning ? 'RUNNING' : `STOPPED: ${loom.stopCategory || 'UNKNOWN'}`}</span>
+          <div
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border ${
+              isRunning
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                : isOffline
+                  ? 'bg-slate-100 text-slate-700 border-slate-300'
+                  : 'bg-red-50 text-red-800 border-red-300'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isRunning ? 'bg-emerald-500' : isOffline ? 'bg-slate-400' : 'bg-red-500'
+              }`}
+            />
+            <span>
+              {isRunning
+                ? 'Running'
+                : isOffline
+                  ? 'Offline'
+                  : `Stopped: ${loom.stopCategory || 'Unknown'}`}
+            </span>
           </div>
 
-          <div className="text-[10px] font-mono text-slate-500 hidden lg:block">
-            {loom.setRpm} RPM Set • {loom.weftDensityPicksPerCm} p/cm {loom.ipAddress ? `• ${loom.ipAddress}` : ''}
+          <div className="text-[11px] font-mono text-slate-500 hidden lg:block">
+            {loom.setRpm} RPM Set • {loom.weftDensityPicksPerCm} p/cm{' '}
+            {loom.ipAddress ? `• ${loom.ipAddress}` : ''}
           </div>
         </div>
       </div>
@@ -108,6 +138,7 @@ export const LoomDashboard: React.FC = () => {
       {/* Navigation Sub-Tabs */}
       <div className="bg-white px-2 sm:px-4 border-b border-slate-200 flex gap-1 sm:gap-2 overflow-x-auto scrollbar-none py-1.5">
         <button
+          type="button"
           onClick={() => setActiveTab('subsystems')}
           className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'subsystems'
@@ -119,6 +150,7 @@ export const LoomDashboard: React.FC = () => {
           <span>Operational Overview</span>
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('hardware')}
           className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'hardware'
@@ -130,6 +162,7 @@ export const LoomDashboard: React.FC = () => {
           <span>Hardware Diagnostics</span>
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('logs')}
           className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'logs'
@@ -148,28 +181,31 @@ export const LoomDashboard: React.FC = () => {
           <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto">
             {/* Stoppage Banner */}
             {isStopped && (
-              <div className="p-3 sm:p-4 bg-red-100/90 border border-red-300 rounded-xl sm:rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-sm">
+              <div className="p-3 sm:p-4 bg-red-100/90 border border-red-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-sm">
                 <div className="flex items-start gap-2.5">
                   <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={18} />
                   <div>
-                    <h3 className="text-xs sm:text-sm font-bold text-red-900 leading-tight">
-                      Active Stoppage: {loom.stopCategory || 'WARP'}
-                    </h3>
+                    <h2 className="text-xs sm:text-sm font-semibold text-red-900 leading-tight">
+                      Active stoppage: {loom.stopCategory || 'Unclassified'}
+                    </h2>
                     <p className="text-[11px] text-red-800 mt-0.5">
-                      Triggered Cause: <strong>{formatStopCategory(loom.stopCategory)}</strong>. Since: {new Date(loom.since).toLocaleTimeString()}.
+                      Cause: <strong>{formatStopCategory(loom.stopCategory)}</strong> • Since:{' '}
+                      {new Date(loom.since).toLocaleTimeString()}
                     </p>
                   </div>
                 </div>
 
                 {loom.operatorReasonCode ? (
-                  <div className="self-start sm:self-auto px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 text-[11px] font-mono font-bold text-amber-900 flex items-center gap-1">
+                  <div className="self-start sm:self-auto px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 text-[11px] font-mono font-semibold text-amber-900 flex items-center gap-1">
                     <CheckCircle2 size={13} className="text-amber-700" />
-                    <span>[{loom.operatorReasonCode}] {OPERATOR_REASON_LABELS[loom.operatorReasonCode]}</span>
+                    <span>
+                      [{loom.operatorReasonCode}] {OPERATOR_REASON_LABELS[loom.operatorReasonCode]}
+                    </span>
                   </div>
                 ) : loom.isLongStop ? (
-                  <div className="self-start sm:self-auto flex items-center gap-1.5 text-xs font-bold text-red-700 animate-pulse">
+                  <div className="self-start sm:self-auto flex items-center gap-1.5 text-xs font-semibold text-red-700">
                     <Tag size={14} />
-                    <span>Long Stop (&gt;5m) - Reason Required</span>
+                    <span>Long stop (&gt;5m) — reason required</span>
                   </div>
                 ) : null}
               </div>
@@ -178,9 +214,7 @@ export const LoomDashboard: React.FC = () => {
             {/* Quick KPI Overview */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
               <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
-                <span className="text-xs font-medium text-slate-500 block">
-                  Pick rate (RPM)
-                </span>
+                <span className="text-xs font-medium text-slate-500 block">Pick rate (RPM)</span>
                 <div className="text-xl sm:text-3xl font-bold font-mono tabular-nums text-slate-900 mt-0.5">
                   {loom.rpm}
                 </div>
@@ -190,11 +224,11 @@ export const LoomDashboard: React.FC = () => {
               </div>
 
               <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
-                <span className="text-xs font-medium text-slate-500 block">
-                  Efficiency
-                </span>
+                <span className="text-xs font-medium text-slate-500 block">Efficiency</span>
                 <div className="text-xl sm:text-3xl font-bold font-mono tabular-nums text-slate-900 mt-0.5">
-                  {loom.efficiencyPercentage !== null ? `${loom.efficiencyPercentage.toFixed(1)}%` : '—'}
+                  {loom.efficiencyPercentage !== null
+                    ? `${loom.efficiencyPercentage.toFixed(1)}%`
+                    : '—'}
                 </div>
                 <span className="text-[11px] text-slate-500 font-mono block mt-0.5">
                   Run: {(loom.runMsShift / 3600000).toFixed(1)}h
@@ -202,21 +236,17 @@ export const LoomDashboard: React.FC = () => {
               </div>
 
               <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
-                <span className="text-xs font-medium text-slate-500 block">
-                  Meters woven
-                </span>
+                <span className="text-xs font-medium text-slate-500 block">Meters woven</span>
                 <div className="text-xl sm:text-3xl font-bold font-mono tabular-nums text-slate-900 mt-0.5">
                   {loom.metresWoven.toFixed(1)} m
                 </div>
                 <span className="text-[11px] text-slate-500 font-mono block mt-0.5">
-                  {loom.picksDeltaShift.toLocaleString()} picks
+                  {(loom.picksDeltaShift || loom.picksTotal).toLocaleString()} picks
                 </span>
               </div>
 
               <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-sm">
-                <span className="text-xs font-medium text-slate-500 block">
-                  Stop frequency
-                </span>
+                <span className="text-xs font-medium text-slate-500 block">Stop frequency</span>
                 <div className="text-xl sm:text-3xl font-bold font-mono tabular-nums text-slate-900 mt-0.5">
                   {loom.cmpx.toFixed(2)}
                 </div>
@@ -238,23 +268,23 @@ export const LoomDashboard: React.FC = () => {
         )}
 
         {activeTab === 'logs' && (
-          <div className="max-w-5xl mx-auto bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3.5 sm:p-5 shadow-sm">
+          <div className="max-w-5xl mx-auto bg-white rounded-xl border border-slate-200/90 p-3.5 sm:p-5 shadow-sm">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                <Clock size={16} className="text-slate-500" />
-                <span>Shift Stoppage Log ({loom.machineId})</span>
-              </h3>
-              <span className="text-[10px] font-mono text-slate-400">{shiftKpis.shift.name}</span>
+              <h2 className="text-xs sm:text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                <Clock size={15} className="text-slate-500" />
+                <span>Shift stoppage log ({loom.machineId})</span>
+              </h2>
+              <span className="text-[11px] font-mono text-slate-500">{shiftKpis.shift.name}</span>
             </div>
 
             <div className="overflow-x-auto scrollbar-none -mx-3.5 sm:mx-0 px-3.5 sm:px-0">
               <table className="w-full text-left text-xs min-w-[500px]">
-                <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[9px] border-b border-slate-200">
+                <thead className="bg-slate-50 text-slate-600 font-medium text-[11px] border-b border-slate-200">
                   <tr>
                     <th className="py-2 px-2.5">Time</th>
                     <th className="py-2 px-2.5">Category</th>
                     <th className="py-2 px-2.5">Duration</th>
-                    <th className="py-2 px-2.5">Reason Code</th>
+                    <th className="py-2 px-2.5">Reason code</th>
                     <th className="py-2 px-2.5">Status</th>
                   </tr>
                 </thead>
@@ -264,23 +294,28 @@ export const LoomDashboard: React.FC = () => {
                       <td className="py-2.5 px-2.5 font-mono text-red-700">
                         {new Date(loom.since).toLocaleTimeString()}
                       </td>
-                      <td className="py-2.5 px-2.5 font-bold text-red-600">
-                        {loom.stopCategory || 'WARP'} (ACTIVE)
+                      <td className="py-2.5 px-2.5 font-semibold text-red-600">
+                        {loom.stopCategory || 'Unclassified'} (Active)
                       </td>
-                      <td className="py-2.5 px-2.5 font-mono text-red-700 font-bold">
-                        {Math.floor((Date.now() - new Date(loom.since).getTime()) / 60000)}m {Math.floor(((Date.now() - new Date(loom.since).getTime()) % 60000) / 1000)}s
+                      <td className="py-2.5 px-2.5 font-mono text-red-700 font-semibold tabular-nums">
+                        {elapsedMins}m {elapsedSecs < 10 ? '0' : ''}
+                        {elapsedSecs}s
                       </td>
                       <td className="py-2.5 px-2.5 font-mono text-slate-800">
-                        {loom.operatorReasonCode ? `[${loom.operatorReasonCode}] ${OPERATOR_REASON_LABELS[loom.operatorReasonCode]}` : <span className="text-amber-600 font-bold">Pending</span>}
+                        {loom.operatorReasonCode ? (
+                          `[${loom.operatorReasonCode}] ${OPERATOR_REASON_LABELS[loom.operatorReasonCode]}`
+                        ) : (
+                          <span className="text-amber-600 font-semibold">Pending</span>
+                        )}
                       </td>
-                      <td className="py-2.5 px-2.5 text-red-700 font-bold">
-                        Active Stoppage
-                      </td>
+                      <td className="py-2.5 px-2.5 text-red-700 font-semibold">Active stoppage</td>
                     </tr>
                   ) : (
                     <tr>
                       <td colSpan={5} className="py-4 text-center text-slate-500 font-medium text-xs">
-                        Machine running with continuous production during active shift ({shiftKpis.shift.name}).
+                        {isOffline
+                          ? 'Machine is currently offline.'
+                          : `Machine running with continuous production during active shift (${shiftKpis.shift.name}).`}
                       </td>
                     </tr>
                   )}

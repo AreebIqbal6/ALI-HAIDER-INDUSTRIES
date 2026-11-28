@@ -105,7 +105,8 @@ export function processLegacyBody(rawBody: unknown): [number, Record<string, unk
   if (!Array.isArray(validated) && !('batch' in validated) && !('envelopes' in validated)) {
     const hItem = validated as z.infer<typeof DirectHardwarePayloadSchema>;
     const deviceId = hItem.deviceId || 'WT32-ETH01-PILOT';
-    const machineId = hItem.machineId || `PIC-${deviceId.slice(-6).replace(/[^A-Za-z0-9]/g, '')}`;
+    const serialSuffix = deviceId.slice(-6).replace(/[^A-Za-z0-9]/g, '');
+    const machineId = hItem.machineId || `PIC-${serialSuffix || 'UNKNOWN'}`;
     const msgId = hItem.msgId || `msg-${deviceId}-${hItem.seq ?? Date.now()}`;
     if (isInMemoryDuplicate(msgId)) {
       return [200, { success: true, processed: 0, deduplicated: 1 }];
@@ -142,6 +143,7 @@ export function processLegacyBody(rawBody: unknown): [number, Record<string, unk
       deviceId,
       state: isRunning ? 'RUNNING' : 'STOPPED',
       stopCategory: detectedCategory,
+      since: hItem.since,
       rpm,
       picksDelta: hItem.picksDelta,
       totalPicks: hItem.totalPicks ?? hItem.picksTotal,

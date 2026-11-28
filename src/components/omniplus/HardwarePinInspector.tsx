@@ -1,19 +1,13 @@
 "use client";
 import React from 'react';
-import { LoomClientState } from '../../types';
-import { 
-  Cpu, 
-  Activity, 
-  Network,
-  ShieldCheck,
-  Radio,
-  Clock,
-  History
-} from 'lucide-react';
+import { LoomClientState, HardwarePinHistoryItem } from '../../types';
+import { Cpu, Network, Radio, History } from 'lucide-react';
 
 interface HardwarePinInspectorProps {
   loom: LoomClientState;
 }
+
+type PinHistoryEntry = HardwarePinHistoryItem & { state?: number; ms?: number };
 
 export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom }) => {
   const diag = loom.hardwareDiagnostics;
@@ -24,19 +18,20 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
     return (
       <div className="bg-[#1e293b] p-6 sm:p-8 rounded-2xl text-center text-slate-300 border border-slate-700 max-w-2xl mx-auto shadow-md">
         <div className="w-12 h-12 rounded-xl bg-slate-800 text-blue-400 flex items-center justify-center mx-auto mb-3 border border-slate-700">
-          <Radio size={22} className="animate-pulse" />
+          <Radio size={20} strokeWidth={1.75} />
         </div>
-        <h4 className="font-mono text-sm sm:text-base font-bold text-white mb-1">
+        <h3 className="font-mono text-sm sm:text-base font-semibold text-white mb-1">
           No pin telemetry reported
-        </h4>
+        </h3>
         <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-          Hardware node <span className="font-mono text-blue-400 font-semibold">{loom.machineId}</span> ({loom.deviceId || 'Ethernet'}) has not transmitted raw XP_CBMP_P9 optocoupler transitions yet.
+          Hardware node <span className="font-mono text-blue-400 font-semibold">{loom.machineId}</span>{' '}
+          ({loom.deviceId || 'Ethernet'}) has not transmitted raw XP_CBMP_P9 optocoupler transitions yet.
         </p>
       </div>
     );
   }
 
-  const rawHistory = pinData.rawPinHistory || [];
+  const rawHistory: PinHistoryEntry[] = pinData.rawPinHistory || [];
 
   const pins = [
     {
@@ -46,7 +41,7 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
       active: Boolean(pinData.piStrt),
       description: 'SUMO motor drive enable status signal (GPIO 4)',
       activeColor: 'bg-emerald-950/70 text-emerald-300 border-emerald-700/60',
-      inactiveColor: 'bg-slate-900/60 text-slate-500 border-slate-800'
+      inactiveColor: 'bg-slate-900/60 text-slate-500 border-slate-800',
     },
     {
       id: 'PI_PP',
@@ -55,7 +50,7 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
       active: Boolean(pinData.piPp),
       description: 'ESP32 Hardware PCNT counter register (GPIO 32, 200 APB cycle glitch filter)',
       activeColor: 'bg-slate-800 text-slate-200 border-slate-600',
-      inactiveColor: 'bg-slate-900/60 text-slate-500 border-slate-800'
+      inactiveColor: 'bg-slate-900/60 text-slate-500 border-slate-800',
     },
     {
       id: 'PI_WD',
@@ -64,7 +59,7 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
       active: Boolean(pinData.piWd),
       description: 'TSF drop wire bus contact closure (GPIO 33)',
       activeColor: 'bg-red-950/70 text-red-300 border-red-700/60',
-      inactiveColor: 'bg-slate-900/60 text-slate-500 border-slate-800'
+      inactiveColor: 'bg-slate-900/60 text-slate-500 border-slate-800',
     },
     {
       id: 'PI_FD',
@@ -73,8 +68,8 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
       active: Boolean(pinData.piFd),
       description: 'FD1/FD2 optical sensor arrival check (GPIO 14)',
       activeColor: 'bg-amber-950/70 text-amber-300 border-amber-700/60',
-      inactiveColor: 'bg-slate-900/60 text-slate-500 border-slate-800'
-    }
+      inactiveColor: 'bg-slate-900/60 text-slate-500 border-slate-800',
+    },
   ];
 
   return (
@@ -87,7 +82,7 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-mono text-sm sm:text-base font-bold text-white tracking-tight leading-tight">
+              <h3 className="font-mono text-sm sm:text-base font-semibold text-white tracking-tight leading-tight">
                 XP_CBMP_P9 Hardware Pin Inspector
               </h3>
               <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
@@ -104,7 +99,7 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
         <div className="flex items-center gap-2 text-xs font-mono self-start sm:self-auto">
           <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 flex items-center gap-1.5">
             <Network size={12} className="text-slate-400" />
-            <span>{diag.ipAddress || '192.168.10.101'}</span>
+            <span>{diag.ipAddress || '—'}</span>
           </span>
           <span className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 text-[10px]">
             {diag.macAddress || loom.deviceId}
@@ -115,34 +110,28 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
       {/* 4 Optocoupled Pins Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         {pins.map((pin) => (
-          <div 
-            key={pin.id} 
-            className={`p-3 rounded-xl border transition-all ${
-              pin.active 
-                ? 'bg-slate-900/90 border-slate-600 shadow-sm' 
+          <div
+            key={pin.id}
+            className={`p-3 rounded-xl border transition-colors ${
+              pin.active
+                ? 'bg-slate-900/90 border-slate-600 shadow-sm'
                 : 'bg-slate-900/50 border-slate-800/80'
             }`}
           >
             <div className="flex items-center justify-between mb-1.5">
-              <span className="font-mono font-semibold text-xs text-white">
-                {pin.id}
-              </span>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium border ${
-                pin.active ? pin.activeColor : pin.inactiveColor
-              }`}>
+              <span className="font-mono font-semibold text-xs text-white">{pin.id}</span>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium border ${
+                  pin.active ? pin.activeColor : pin.inactiveColor
+                }`}
+              >
                 {pin.active ? 'High (1)' : 'Low (0)'}
               </span>
             </div>
 
-            <div className="text-[11px] font-medium text-slate-200">
-              {pin.name}
-            </div>
-            <div className="text-[10px] font-mono text-slate-400 mt-0.5">
-              {pin.pinNum}
-            </div>
-            <p className="text-[10px] text-slate-400 mt-1 leading-snug">
-              {pin.description}
-            </p>
+            <div className="text-[11px] font-medium text-slate-200">{pin.name}</div>
+            <div className="text-[10px] font-mono text-slate-400 mt-0.5">{pin.pinNum}</div>
+            <p className="text-[10px] text-slate-400 mt-1 leading-snug">{pin.description}</p>
           </div>
         ))}
       </div>
@@ -150,7 +139,7 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
       {/* Verified Edge Transition History */}
       <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
             <History size={14} className="text-blue-400" />
             <span>Raw Pin Transition Evidence</span>
           </div>
@@ -175,24 +164,42 @@ export const HardwarePinInspector: React.FC<HardwarePinInspectorProps> = ({ loom
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                {rawHistory.map((item: any, idx) => {
-                  const level = item.level !== undefined ? item.level : (item.state !== undefined ? item.state : 0);
-                  const offset = item.offsetMsFromStop !== undefined ? item.offsetMsFromStop : (item.ms !== undefined ? item.ms : 0);
+                {rawHistory.map((item, idx) => {
+                  const level = item.level ?? item.state ?? 0;
+                  const offset = item.offsetMsFromStop ?? item.ms ?? 0;
                   return (
                     <tr key={idx} className="hover:bg-slate-800/40">
-                      <td className="py-1.5 font-bold text-white">{item.pin}</td>
+                      <td className="py-1.5 font-semibold text-white">{item.pin}</td>
                       <td className="py-1.5 text-slate-400">
-                        {item.pin === 'PI_STRT' ? 'GPIO 4' : item.pin === 'PI_PP' ? 'GPIO 32 [PCNT]' : item.pin === 'PI_WD' ? 'GPIO 33' : 'GPIO 14'}
+                        {item.pin === 'PI_STRT'
+                          ? 'GPIO 4'
+                          : item.pin === 'PI_PP'
+                            ? 'GPIO 32 [PCNT]'
+                            : item.pin === 'PI_WD'
+                              ? 'GPIO 33'
+                              : 'GPIO 14'}
                       </td>
                       <td className="py-1.5">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                          level === 1 ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'
-                        }`}>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
+                            level === 1
+                              ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                              : 'bg-slate-800 text-slate-400'
+                          }`}
+                        >
                           {level === 1 ? 'HIGH (1)' : 'LOW (0)'}
                         </span>
                       </td>
-                      <td className="py-1.5 font-bold">
-                        <span className={offset < 0 ? 'text-amber-400' : offset === 0 ? 'text-red-400' : 'text-blue-400'}>
+                      <td className="py-1.5 font-semibold tabular-nums">
+                        <span
+                          className={
+                            offset < 0
+                              ? 'text-amber-400'
+                              : offset === 0
+                                ? 'text-red-400'
+                                : 'text-blue-400'
+                          }
+                        >
                           {offset > 0 ? `+${offset}ms` : `${offset}ms`}
                         </span>
                       </td>

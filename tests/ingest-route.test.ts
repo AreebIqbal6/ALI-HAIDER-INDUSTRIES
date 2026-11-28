@@ -194,7 +194,11 @@ describe('rate limiting', () => {
 
 describe('legacy x-weavesync-key path', () => {
   const frame = { deviceId: 'legacy-dev', machineId: 'PIC-111111', pins: { piStrt: 1 }, rpm: 800 };
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    const { clearAllLooms } = await import('@/lib/localStore');
+    clearAllLooms();
+  });
 
   it('is disabled by default (401 even with a plausible key)', async () => {
     vi.stubEnv('LEGACY_INGEST_KEY', '');
@@ -207,10 +211,59 @@ describe('legacy x-weavesync-key path', () => {
     const r = await handle(req(frame, { 'x-weavesync-key': 'legacy-test-kez' }));
     expect(r.status).toBe(401);
   });
+
+  it('accepts a valid key and deduplicates repeated msgId frames', async () => {
+    vi.stubEnv('LEGACY_INGEST_KEY', 'legacy-test-key');
+    const uniqueFrame = { ...frame, msgId: `legacy-dup-${Date.now()}` };
+    const r1 = await handle(req(uniqueFrame, { 'x-weavesync-key': 'legacy-test-key' }));
+    expect(r1.status).toBe(200);
+    const j1 = await r1.json();
+    expect(j1.processed).toBe(1);
+
+    const r2 = await handle(req(uniqueFrame, { 'x-weavesync-key': 'legacy-test-key' }));
+    expect(r2.status).toBe(200);
+    const j2 = await r2.json();
+    expect(j2.deduplicated).toBe(1);
+  });
+
+  it('preserves since timestamp and guards non-alphanumeric deviceId on legacy direct frames', async () => {
+    vi.stubEnv('LEGACY_INGEST_KEY', 'legacy-test-key');
+    const customSince = '2026-11-28T10:00:00.000Z';
+    const r = await handle(
+      req(
+        {
+          deviceId: '---',
+          pins: { piStrt: 0, piWd: 1 },
+          rpm: 0,
+          since: customSince,
+          msgId: `legacy-since-${Date.now()}`,
+        },
+        { 'x-weavesync-key': 'legacy-test-key' },
+      ),
+    );
+    expect(r.status).toBe(200);
+    const body = await r.json();
+    expect(body.machineId).toBe('PIC-UNKNOWN');
+
+    const { getLocalStoreSnapshot } = await import('@/lib/localStore');
+    const snap = getLocalStoreSnapshot();
+    const loom = snap.looms.find((l) => l.machine_id === 'PIC-UNKNOWN');
+    expect(loom?.liveState.since).toBe(customSince);
+  });
+
+  it('rejects oversized UTF-8 payloads with 413', async () => {
+    const huge = { deviceId: DEVICE.deviceId, envelopes: [{ pad: '🚀'.repeat(70_000) }] };
+    const r = await handle(req(huge));
+    expect(r.status).toBe(413);
+  });
 });
 
 describe('route module', () => {
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    const { clearAllLooms } = await import('@/lib/localStore');
+    clearAllLooms();
+  });
 
   it('POST without Supabase configured: bearer -> 503, legacy key -> 401', async () => {
     vi.stubEnv('NEXT_PUBLIC_ENABLE_SUPABASE', 'false');
@@ -231,5 +284,14 @@ describe('route module', () => {
     vi.stubEnv('ADMIN_API_KEY', 'admin-test-key');
     expect((await DELETE(mk({ 'x-admin-key': 'wrong' }))).status).toBe(401);
     expect((await DELETE(mk({ 'x-admin-key': 'admin-test-key' }))).status).toBe(200);
+  });
+
+  it('GET /api/ingest/v1/batch and GET /api/live/state return Cache-Control: no-store', async () => {
+    const { GET: getBatch } = await import('@/app/api/ingest/v1/batch/route');
+    const { GET: getLive } = await import('@/app/api/live/state/route');
+    const r1 = await getBatch();
+    const r2 = await getLive();
+    expect(r1.headers.get('cache-control')).toBe('no-store');
+    expect(r2.headers.get('cache-control')).toBe('no-store');
   });
 });

@@ -125,9 +125,16 @@ export function persistToDisk() {
         deviceSeqMap: Array.from(store.deviceSeqMap.entries()),
         savedAt: new Date().toISOString()
       };
-      const tmpFile = `${DATA_FILE}.tmp.${Date.now()}`;
-      fs.writeFileSync(tmpFile, JSON.stringify(payload, null, 2), 'utf8');
-      fs.renameSync(tmpFile, DATA_FILE);
+      const tmpFile = `${DATA_FILE}.tmp.${process.pid}.${Date.now()}`;
+      try {
+        fs.writeFileSync(tmpFile, JSON.stringify(payload, null, 2), 'utf8');
+        fs.renameSync(tmpFile, DATA_FILE);
+      } catch (writeErr) {
+        try {
+          if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+        } catch {}
+        throw writeErr;
+      }
     } catch (err) {
       console.warn('[LocalStore] Error persisting local_store.json:', err);
     }
@@ -248,8 +255,14 @@ export function autoRegisterLoom(params: {
 
   let existing = store.looms.get(machineId);
   if (!existing) {
-    // Determine auto loom number if not provided
-    const nextLoomNum = params.loomNumber ?? (store.looms.size + 1);
+    // Determine next free loom number if not provided
+    let maxNum = 0;
+    for (const l of store.looms.values()) {
+      if (typeof l.loom_number === 'number' && l.loom_number > maxNum) {
+        maxNum = l.loom_number;
+      }
+    }
+    const nextLoomNum = params.loomNumber ?? (maxNum + 1);
 
     existing = {
       id: `loom-${machineId.toLowerCase()}`,
@@ -379,6 +392,15 @@ export function updateLoomTelemetry(params: {
   return live;
 }
 
+export function hasLoomNumberConflict(machineId: string, loomNumber: number): boolean {
+  for (const [mId, l] of store.looms.entries()) {
+    if (mId !== machineId && l.loom_number === loomNumber) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Configure / Label a connected machine
  */
@@ -397,7 +419,13 @@ export function configureLoom(params: {
   if (params.family) loom.family = params.family;
   if (params.articleName) loom.article_name = params.articleName;
   if (params.setRpm) loom.set_rpm = params.setRpm;
-  if (params.weftDensity) loom.weft_density_picks_per_cm = params.weftDensity;
+  if (params.weftDensity) {
+    loom.weft_density_picks_per_cm = params.weftDensity;
+    const live = store.liveStates.get(params.machineId);
+    if (live) {
+      live.meters_woven = Number((live.total_picks / (params.weftDensity * 100.0)).toFixed(1));
+    }
+  }
 
   persistToDisk();
   return loom;
@@ -539,6 +567,10 @@ export function clearTestLoom(machineIdOrDeviceId: string): boolean {
  * Clear all registered looms and state
  */
 export function clearAllLooms(): void {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
   store.looms.clear();
   store.liveStates.clear();
   store.counters = [];

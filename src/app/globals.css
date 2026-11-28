@@ -2,8 +2,7 @@
 
 @layer base {
   body {
-    @apply bg-slate-900 text-slate-50 antialiased selection:bg-blue-500/30;
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply bg-[#e8ebf0] text-slate-900 antialiased selection:bg-blue-500/20;
   }
 }
 
@@ -23,7 +22,13 @@
   background: #475569;
 }
 
-/* Glassmorphism utilities */
-.glass-panel {
-  @apply bg-slate-800/80 backdrop-blur-md border border-slate-700/50 shadow-xl;
+@media print {
+  header,
+  nav {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
 }

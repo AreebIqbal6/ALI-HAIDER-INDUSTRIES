@@ -6,5 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const snapshot = getLocalStoreSnapshot();
-  return NextResponse.json(snapshot);
+  return NextResponse.json(snapshot, {
+    headers: { 'Cache-Control': 'no-store' },
+  });
 }
